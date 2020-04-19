@@ -33,7 +33,6 @@ def sell(sym):
 	return execAPI(createParams("Sell", sym, "ALL_SHARES"))
 
 def buy(sym,val):
-	# Define endpoint URL
 	return execAPI(createParams("Buy", sym, "DOLLARS", val))
 
 def get_quotes(**kwargs):
