@@ -1,5 +1,4 @@
 import requests
-import json
 
 account_id = "2010359101" #your account number
 access_token = 21924124 #need to get access token
@@ -25,7 +24,7 @@ def createParams(instruction, symbol, quantityType, quantity = 1):
 	}
 	return params
 
-def execAPI(instruction):
+def execAPI(params):
 	url = r"https://api.tdameritrade.com/v1/accounts/{}/savedorders".format(account_id)
 	return requests.get(url, params = params)
 
