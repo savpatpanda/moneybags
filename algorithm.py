@@ -180,6 +180,7 @@ def loop():
 			# finally:
 				# cluster.close()
 				# currentFile.close()
+				# exit(1)
 			i += 1
 			if i % 30:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
