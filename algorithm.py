@@ -4,6 +4,7 @@ import numpy as np
 from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
 import datetime
 import time
+import traceback
 
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
@@ -172,9 +173,16 @@ def loop():
 	while(i > 0):
 		time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
-			update()
+			try:
+				update()
+			except Exception as e:
+				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
+			finally:
+				cluster.close()
+				currentFile.close()
+
 			i += 1
-			if i % 15:
+			if i % 30:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 		else:
 			break
