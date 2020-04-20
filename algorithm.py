@@ -115,6 +115,7 @@ def decision(obj):
 			new_wait = wait+1
 			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
 			return ([0, 0])
+
 def update():
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
@@ -156,4 +157,4 @@ def loop():
 			print("helo")
 if __name__ == "__main__":
 	print("moneybags v1")
-	loop()
+	#loop()
