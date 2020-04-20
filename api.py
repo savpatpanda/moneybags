@@ -77,7 +77,8 @@ def get_quotes(**kwargs):
 	params.update({'symbol': [symbol for symbol in kwargs.get('symbol')]})
 
 	# Create request, with URL and parameters
-	return requests.get(url, params=params).json()
+	obj = requests.get(url, params=params).json()
+	return obj[kwargs.get('symbol')]['lastPrice']
 
 def get_price_history(**kwargs):
 

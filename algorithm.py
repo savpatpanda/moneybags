@@ -52,18 +52,12 @@ def initializeDB():
 def getBalance():
 	return 1
 
-def get_price(**kwargs):
-	data = get_quotes(symbol=kwargs.get('symbol'))
-	for symbol in kwargs.get('symbol'):
-		print(symbol)
-		print(data[symbol]['lastPrice'])
-
 def update_vals(old):
 	vals = old["vals"]
 	slopes = old["slopes"]
 	infl = old["infl"]
 
-	new_val = get_price(symbol=sym)
+	new_val = get_quotes(symbol=sym)
 	vals.append(new_val)
 	new_slope = (vals[len(vals)-1] - vals[len(vals)-2])/vals[len(vals)-2]*100 #percent change in new minute
 	slopes.append(new_slope)
