@@ -2,8 +2,8 @@ import pymongo
 from pymongo import MongoClient
 import numpy as np
 from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
+import datetime
 import time
-import threading
 
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
@@ -114,7 +114,6 @@ def decision(obj):
 			collections.update_one({"_id":obj['_id'],"wait":new_wait})
 
 def update():
-	print("hello")
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
 	buy_matrix = []
@@ -143,6 +142,7 @@ def update():
 
 if __name__ == "__main__":
 	while(1):
-		time.sleep(60)
-		update()
+		time.sleep(1)
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
+			update()
 	print("moneybags v1")
