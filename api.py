@@ -78,7 +78,7 @@ def get_quotes(**kwargs):
 
 	# Create request, with URL and parameters
 	obj = requests.get(url, params=params).json()
-	return obj[kwargs.get('symbol')]['lastPrice']
+	return obj[kwargs.get('symbol')]['lastPrice'] if kwargs.get('symbol') in obj else None
 
 def get_price_history(**kwargs):
 
@@ -92,4 +92,4 @@ def get_price_history(**kwargs):
 		params.update(parameter)
 
 	obj = requests.get(url, params=params).json()['candles']
-	return(obj)
+	return obj

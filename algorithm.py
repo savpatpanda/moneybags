@@ -22,6 +22,7 @@ wait_time = 7
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
 collection = db["test"]
+currentFile = None
 
 def initializeDB():
 	#initializing values in database
@@ -63,6 +64,9 @@ def update_vals(old):
 	wait = old["wait"]
 
 	new_val = get_quotes(symbol=old['_id'])
+	if new_val is None:
+		currentFile.write("get_quotes returned null for %s\n" % old['_id'])
+		return new_val
 	#print("%s, last slopes: %s, last vals: %s" % (old["_id"], old["slopes"][-5:], old["vals"][-5:]))
 	#print("\nprint new value:\n")
 	#new_val = float(input())
@@ -95,7 +99,7 @@ def decision(obj):
 	low = min(vals[:-60])
 	rise = (vals[-1] - low) / low*100
 
-	#print("high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise))
+	
 
 	if(drop < -change_min):
 		if(wait>=wait_time):
@@ -104,6 +108,9 @@ def decision(obj):
 				return (0,0)
 			else:
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
+				currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+					(datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(drop,'buy')
 		else:
 			#print("increasing wait")
@@ -117,6 +124,9 @@ def decision(obj):
 				return (0, 0)
 			else:
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
+				currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+					(datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(rise,'sell')
 		else:
 			#print("increasing wait")
@@ -132,6 +142,8 @@ def update():
 
 	for i in range(len(symb)):
 		obj = update_vals(collection.find_one({"_id":symb[i]}))
+		if obj is None:
+			continue
 		dec = decision(obj)
 		if(dec[1] == 'sell'):
 			sell_matrix.append((dec[0],obj["_id"]))
@@ -143,7 +155,6 @@ def update():
 
 	while len(sell_matrix)>0:
 		sell(sell_matrix[-1][1])
-		#print("Selling: %s" % sell_matrix[-1][1])
 		sell_matrix.pop()
 
 	#retrieve balances after sell-offs
@@ -151,15 +162,22 @@ def update():
 
 	while len(buy_matrix)>0 and balance>0:
 		buy(buy_matrix[-1][1])
-		#print("Buying: %s" % buy_matrix[-1][1])
 		buy_matrix.pop()
 
 
 def loop():
-	while(1):
+	# open today's file
+	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
+	i = 1
+	while(i > 0):
 		time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
 			update()
+			i += 1
+			if i % 15:
+				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+		else:
+			break
 
 if __name__ == "__main__":
 	#collection.delete_many({})
