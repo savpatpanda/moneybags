@@ -7,6 +7,7 @@ import threading
 
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
+#update balance in update() when money enters account
 #fix pinging and token requests
 
 #user-input
@@ -134,7 +135,7 @@ def update():
 		sell_matrix.pop(len(buy_matrix)-1)
 
 	#retrieve balances after sell-offs
-	balance = getBalance()
+	balance = 100
 
 	while len(buy_matrix)>0 and balance>0:
 		buy(buy_matrix[len(buy_matrix)-1][1])
