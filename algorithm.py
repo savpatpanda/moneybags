@@ -1,17 +1,18 @@
 import pymongo
 from pymongo import MongoClient
 import numpy as np
-from api import buy, sell, get_quotes
+from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
+import time
 #things to do:
-#add headers for buy and sell --> make functions POST methods
-#get account balances
-#get access token and account id
+#implement checkBalances method in api.py and integrate into sell and buy
+#fix pinging and token requests
 
 #user-input
-symb = ['AAPL','NFLX','GOOG','HFC']
+symb = ['AAPL','NFLX','GOOG','HFC','GS','WTI','AMZN','UAL','XOM','IBM']
 frequency = 1 #minutes
-track = 60 #minutes tracking
-change_min = 0.1 #minimum percentage drop to initiate sequence
+track = 240 #minutes tracking
+direction_check = 15 #minutes for direction calculator
+change_min = 1 #minimum percentage drop to initiate sequence
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -20,8 +21,31 @@ collection = db["test"]
 
 def initializeDB():
 	#initializing values in database
+	start = int(time.time())-259200000
 	for i in range(len(symb)):
-		post = {"_id":symb[i],"vals":[],"slopes":[],"infl":[],"dir":0,"wait":0}
+		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,startDate=start)
+		max_length = len(obj)
+
+		v = []
+		for j in range(track):
+			v.append(float(obj[max_length-track+j]['close']))
+
+		s = []
+		inflections = []
+		d = np.mean(v)
+
+		for j in range(len(v)-1):
+			slope = (v[j+1]-v[j])/v[j]*100
+			s.append(slope)
+
+		for j in range(len(s)-1):
+			if(s[j]==0):
+				inf = (s[j+1]-s[j])/0.000001*100
+			else:
+				inf = (s[j+1]-s[j])/s[j]*100
+			inflections.append(inf)
+
+		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0}
 		collection.insert_one(post)
 
 def getBalance():
@@ -44,7 +68,7 @@ def update_vals(old):
 	slopes.append(new_slope)
 	new_infl = (slopes[len(slopes)-1]-slopes[len(slopes)-2])/slopes[len(slopes)-2]*100 #percent change of slopes in new minute
 	infl.append(new_infl)
-	direct = np.mean(slopes)
+	direct = np.mean(slopes[len(slopes)-direction_check:])
 
 	vals.pop(0)
 	slopes.pop(0)
@@ -58,7 +82,7 @@ def decision(obj):
 	vals = obj["vals"]
 	slopes = obj["slopes"]
 	infl = obj["infl"]
-	direct = obj["dir"]
+	direct = obj["dir"] #buy or sell
 	wait = obj["wait"]
 
 	high = max(vals)
@@ -76,8 +100,7 @@ def decision(obj):
 		else:
 			new_wait = wait+1
 			collections.update_one({"_id":obj['_id'],"wait":new_wait})
-
-	if(abs(rise)>change_min and direct>0):
+	elif(abs(rise)>change_min and direct>0):
 		if(wait>=wait_time):
 			if(np.mean(slopes[len(slopes)-wait_time:])>0):
 				collections.update_one({"_id":obj['_id'],"wait":0})
