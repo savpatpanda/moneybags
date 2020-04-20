@@ -35,7 +35,7 @@ def initializeDB():
 
 		s = []
 		inflections = []
-		d = np.mean(v)
+		d = np.mean(s)
 
 		for j in range(len(v)-1):
 			slope = (v[j+1]-v[j])/v[j]*100
