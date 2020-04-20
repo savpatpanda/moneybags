@@ -59,7 +59,7 @@ def update_vals(old):
 	slopes = old["slopes"]
 	infl = old["infl"]
 
-	new_val = get_quotes(symbol=sym)
+	new_val = get_quotes(symbol=old['_id'])
 	vals.append(new_val)
 	new_slope = (vals[len(vals)-1] - vals[len(vals)-2])/vals[len(vals)-2]*100 #percent change in new minute
 	slopes.append(new_slope)
