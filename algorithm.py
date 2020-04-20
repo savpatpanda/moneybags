@@ -2,7 +2,9 @@ import pymongo
 from pymongo import MongoClient
 import numpy as np
 from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
+import datetime
 import time
+
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
 #update balance in update() when money enters account
@@ -133,6 +135,8 @@ def update():
 		buy_matrix.pop(len(buy_matrix)-1)
 
 if __name__ == "__main__":
-	# initializeDB()
-	# update()
+	while(1):
+		time.sleep(1)
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
+			update()
 	print("moneybags v1")
