@@ -63,7 +63,7 @@ def execAPI(params):
 def sell(sym):
 	return execAPI(createParams("Sell", sym))
 
-def buy(sym,val):
+def buy(sym,val = 1):
 	return execAPI(createParams("Buy", sym, val))
 
 def get_quotes(**kwargs):

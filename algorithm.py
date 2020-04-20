@@ -16,6 +16,7 @@ frequency = 1 #minutes
 track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
 change_min = 1 #minimum percentage drop to initiate sequence
+wait_time = 7
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -59,11 +60,12 @@ def update_vals(old):
 	vals = old["vals"]
 	slopes = old["slopes"]
 	infl = old["infl"]
+	wait = old["wait"]
 
-	# new_val = get_quotes(symbol=old['_id'])
-	print("%s, last slopes: %s, last vals: %s" % (old["_id"], old["slopes"][-5:], old["vals"][-5:]))
-	print("\nprint new value:\n")
-	new_val = int(input())
+	new_val = get_quotes(symbol=old['_id'])
+	#print("%s, last slopes: %s, last vals: %s" % (old["_id"], old["slopes"][-5:], old["vals"][-5:]))
+	#print("\nprint new value:\n")
+	#new_val = float(input())
 	vals.append(new_val)
 	new_slope = (vals[-1] - vals[-2])/vals[-2]*100 #percent change in new minute
 	slopes.append(new_slope)
@@ -76,8 +78,8 @@ def update_vals(old):
 	slopes.pop(0)
 	infl.pop(0)
 
-	obj = {"_id":old['_id'], "vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": 0}
-	collection.update_one({"_id": old["_id"]}, {"$set": {"vals":vals,"slopes":slopes,"infl":infl,"dir":direct}})
+	obj = {"_id":old['_id'], "vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": wait}
+	collection.update_one({"_id": old["_id"]}, {"$set": {"vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": wait}})
 	return obj
 
 def decision(obj):
@@ -86,35 +88,42 @@ def decision(obj):
 	infl =  obj["infl"]
 	direct =  obj["dir"] #buy or sell
 	wait = obj["wait"]
-	wait_time = 7
 
-	high = max(vals)
-	drop = (high - vals[-1]) / high*100
+	high = max(vals[:-60])
+	drop = (vals[-1] - high) / high*100
 
-	low = min(vals)
-	rise = (low - vals[-1])/low*100
+	low = min(vals[:-60])
+	rise = (vals[-1] - low) / low*100
 
-	if(abs(drop)>change_min and direct<0):
+	print("high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise))
+
+	if(drop < -change_min):
 		if(wait>=wait_time):
 			if(np.mean(slopes[-wait_time:])<0):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				return (0,0)
 			else:
-				return([drop,'buy'])
+				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				return(drop,'buy')
 		else:
-			new_wait = wait+1
+			print("increasing wait")
+			new_wait = wait + 1
 			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
-			return ([0, 0])
-	elif(abs(rise)>change_min and direct>0):
+			return (0, 0)
+	elif(rise > change_min):
 		if(wait>=wait_time):
 			if(np.mean(slopes[-wait_time:])>0):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
-				return ([0, 0])
+				return (0, 0)
 			else:
-				return([rise,'sell'])
+				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				return(rise,'sell')
 		else:
-			new_wait = wait+1
+			print("increasing wait")
+			new_wait = wait + 1
 			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
-			return ([0, 0])
+			return (0, 0)
+	return (0,0)
 
 def update():
 	# run regularly on minute-by-minute interval
@@ -122,12 +131,13 @@ def update():
 	buy_matrix = []
 
 	for i in range(len(symb)):
-		obj = update_vals(collection.find_one({"_id":symb[i]}))
-		dec = decision(obj)
-		if(dec[1] == 'sell'):
-			sell_matrix.append(dec[0],obj["_id"])
-		if(dec[1] == 'buy'):
-			buy_matrix.append(dec[0],obj["_id"])
+		if symb[i] == "AAPL":
+			obj = update_vals(collection.find_one({"_id":symb[i]}))
+			dec = decision(obj)
+			if(dec[1] == 'sell'):
+				sell_matrix.append((dec[0],obj["_id"]))
+			if(dec[1] == 'buy'):
+				buy_matrix.append((dec[0],obj["_id"]))
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
@@ -148,13 +158,10 @@ def update():
 
 def loop():
 	while(1):
-		print('in loop')
-		time.sleep(2)
-		print('yello')
-		if datetime.time(2, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
+		time.sleep(60)
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
 			update()
-		else:
-			print("helo")
+
 if __name__ == "__main__":
 	print("moneybags v1")
 	#loop()
