@@ -59,11 +59,15 @@ def update_vals(old):
 	slopes = old["slopes"]
 	infl = old["infl"]
 
-	new_val = get_quotes(symbol=old['_id'])
+	# new_val = get_quotes(symbol=old['_id'])
+	print("%s, last slopes: %s, last vals: %s" % (old["_id"], old["slopes"][-5:], old["vals"][-5:]))
+	print("\nprint new value:\n")
+	new_val = int(input())
 	vals.append(new_val)
 	new_slope = (vals[-1] - vals[-2])/vals[-2]*100 #percent change in new minute
 	slopes.append(new_slope)
-	new_infl = (slopes[-1]-slopes[-2])/slopes[-2]*100 #percent change of slopes in new minute
+	new_infl = (slopes[-1]-slopes[-2]) * 100 #percent change of slopes in new minute
+	new_infl /= slopes[-2] if slopes[-2] != 0 else 0.00001
 	infl.append(new_infl)
 	direct = np.mean(slopes[-direction_check:])
 
@@ -71,16 +75,17 @@ def update_vals(old):
 	slopes.pop(0)
 	infl.pop(0)
 
-	obj = {"_id":old['_id'],"vals":vals,"slopes":slopes,"infl":infl,"dir":direct}
-	collection.update_one(obj)
+	obj = {"_id":old['_id'], "vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": 0}
+	collection.update_one({"_id": old["_id"]}, {"$set": {"vals":vals,"slopes":slopes,"infl":infl,"dir":direct}})
 	return obj
 
 def decision(obj):
-	vals = obj["vals"]
-	slopes = obj["slopes"]
-	infl = obj["infl"]
-	direct = obj["dir"] #buy or sell
+	vals =  obj["vals"]
+	slopes =  obj["slopes"]
+	infl =  obj["infl"]
+	direct =  obj["dir"] #buy or sell
 	wait = obj["wait"]
+	wait_time = 7
 
 	high = max(vals)
 	drop = (high - vals[-1]) / high*100
@@ -90,34 +95,36 @@ def decision(obj):
 
 	if(abs(drop)>change_min and direct<0):
 		if(wait>=wait_time):
-			if(np.mean(slopes[len(slopes)-wait_time:])<0):
-				collections.update_one({"_id":obj['_id'],"wait":0})
+			if(np.mean(slopes[-wait_time:])<0):
+				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
 			else:
 				return([drop,'buy'])
 		else:
 			new_wait = wait+1
-			collections.update_one({"_id":obj['_id'],"wait":new_wait})
+			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
+			return ([0, 0])
 	elif(abs(rise)>change_min and direct>0):
 		if(wait>=wait_time):
-			if(np.mean(slopes[len(slopes)-wait_time:])>0):
-				collections.update_one({"_id":obj['_id'],"wait":0})
+			if(np.mean(slopes[-wait_time:])>0):
+				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				return ([0, 0])
 			else:
 				return([rise,'sell'])
 		else:
 			new_wait = wait+1
-			collections.update_one({"_id":obj['_id'],"wait":new_wait})
-
+			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
+			return ([0, 0])
 def update():
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
 	buy_matrix = []
 
 	for i in range(len(symb)):
-		obj = update_vals(collection.find({"_id":sym}))
+		obj = update_vals(collection.find_one({"_id":symb[i]}))
 		dec = decision(obj)
-		if(dec[1]=='sell'):
+		if(dec[1] == 'sell'):
 			sell_matrix.append(dec[0],obj["_id"])
-		if(dec[0]=='buy'):
+		if(dec[1] == 'buy'):
 			buy_matrix.append(dec[0],obj["_id"])
 
 	sell_matrix = sorted(sell_matrix)
@@ -125,6 +132,7 @@ def update():
 
 	while len(sell_matrix)>0:
 		sell(sell_matrix[-1][1])
+		print("Selling: %s" % sell_matrix[-1][1])
 		sell_matrix.pop()
 
 	#retrieve balances after sell-offs
@@ -132,11 +140,19 @@ def update():
 
 	while len(buy_matrix)>0 and balance>0:
 		buy(buy_matrix[-1][1])
+		print("Buying: %s" % buy_matrix[-1][1])
 		buy_matrix.pop()
 
-if __name__ == "__main__":
+
+def loop():
 	while(1):
-		time.sleep(60)
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
+		print('in loop')
+		time.sleep(2)
+		print('yello')
+		if datetime.time(2, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
 			update()
+		else:
+			print("helo")
+if __name__ == "__main__":
 	print("moneybags v1")
+	loop()
