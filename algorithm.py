@@ -177,10 +177,9 @@ def loop():
 				update()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			finally:
-				cluster.close()
-				currentFile.close()
-
+			# finally:
+				# cluster.close()
+				# currentFile.close()
 			i += 1
 			if i % 30:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
