@@ -95,7 +95,7 @@ def decision(obj):
 	low = min(vals[:-60])
 	rise = (vals[-1] - low) / low*100
 
-	print("high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise))
+	#print("high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise))
 
 	if(drop < -change_min):
 		if(wait>=wait_time):
@@ -106,7 +106,7 @@ def decision(obj):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
 				return(drop,'buy')
 		else:
-			print("increasing wait")
+			#print("increasing wait")
 			new_wait = wait + 1
 			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
 			return (0, 0)
@@ -119,7 +119,7 @@ def decision(obj):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
 				return(rise,'sell')
 		else:
-			print("increasing wait")
+			#print("increasing wait")
 			new_wait = wait + 1
 			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
 			return (0, 0)
@@ -131,20 +131,19 @@ def update():
 	buy_matrix = []
 
 	for i in range(len(symb)):
-		if symb[i] == "AAPL":
-			obj = update_vals(collection.find_one({"_id":symb[i]}))
-			dec = decision(obj)
-			if(dec[1] == 'sell'):
-				sell_matrix.append((dec[0],obj["_id"]))
-			if(dec[1] == 'buy'):
-				buy_matrix.append((dec[0],obj["_id"]))
+		obj = update_vals(collection.find_one({"_id":symb[i]}))
+		dec = decision(obj)
+		if(dec[1] == 'sell'):
+			sell_matrix.append((dec[0],obj["_id"]))
+		if(dec[1] == 'buy'):
+			buy_matrix.append((dec[0],obj["_id"]))
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
 
 	while len(sell_matrix)>0:
 		sell(sell_matrix[-1][1])
-		print("Selling: %s" % sell_matrix[-1][1])
+		#print("Selling: %s" % sell_matrix[-1][1])
 		sell_matrix.pop()
 
 	#retrieve balances after sell-offs
@@ -152,7 +151,7 @@ def update():
 
 	while len(buy_matrix)>0 and balance>0:
 		buy(buy_matrix[-1][1])
-		print("Buying: %s" % buy_matrix[-1][1])
+		#print("Buying: %s" % buy_matrix[-1][1])
 		buy_matrix.pop()
 
 
