@@ -163,5 +163,7 @@ def loop():
 			update()
 
 if __name__ == "__main__":
+	#collection.delete_many({})
+	#initializeDB()
 	print("moneybags v1")
-	#loop()
+	loop()
