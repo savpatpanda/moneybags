@@ -1,10 +1,22 @@
 import requests
 
-account_id = "2010359101" #your account number
-access_token = 21924124 #need to get access token
-key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
+def getToken(key):
+	url = r"https://api.tdameritrade.com/v1/oauth2/token"
+	params = {
+		"grant_type":'refresh_token',
+		"refresh_token":'UNG9qUd148KVE+eUwqTUr221/BlFritvVlYKpuPhkuu0hYQ5YkdmKhsz+Znnx7ttvEBskgBVRrM7K8GXk+GOdGDQELfNPXcdW+ij1TZJXNuRLJhOted9qQY2qFpWQB8YV7V98rE/xb74bEv5xIOkQJKL6PzzKUVgnK8oolAD5ohnlArGRNz5Ubp3x9nPgWIJxio4biKDwoWvtWDClPQW4GA8YHmG92EpCWmT12WGxbt7jGkQeOp3nGVU+ZgsvXgoBMn/ZvWQ/kSA8lvZhxW4Qnymt8cnoRseA5315lF6We01kys/YN8DEPIAQRjRfYJjUv4arw3nQqQslIKhVg+g3aZzANDQx0xCpI/SEAbGtPquaJDX5wv6V8EMyZHYksg3obOjjYAcz9sLWq040wmmIknQRfVJDTgDxf7BY5ItJCC2YbHksPNgg/pwVSD100MQuG4LYrgoVi/JHHvl0W57fDOmbQYAuZAumAzaRQtA/9M2uaoi9hIxFUdoysP3yar3D4E+9UPRv5fNXRSULTLDv5nlCROeS6opfSCuADa71ziNsNCjDP7ZpRiKquSRuH+sD/jCystklI2PLc3auOZzCaTNapVwxhovbwOJxEgfGQJ9x7LVgzdZLAYz6mitGdpHc3HTLTTfJkA8h/Bi+Hk5n9Rbg5bLPH+5BFtozfDTXnAFclvz3DQiUia1WF19tEoMd9TZvtC9VMrT8Nb3F7SV3eQd/aF0FFjylhZqANb4IHa16d0/OYMIsPFJkcYnQpmxSya2vfAOKHGamor1YjG2HPp2yMSlTMl33Tc6xUUBsdxhRNtCH01u7vW9OoCfzJhsj8FNKdcy8qtDJ6qN47UkOmH/5XrHc5fToXeajCLwhKwuzCix8Q+/LwO9QzYCVRkmxPEwpLm2OcE=212FD3x19z9sWBHDJACbC00B75E',
+		"client_id": key
+	}
+	obj = requests.get(url,params = params)
+	print(obj.json())
+	print(obj.status_code)
+	return obj
 
-def createParams(instruction, symbol, quantityType, quantity = 1):
+account_id = "454685471" #your account number
+key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
+access_token = getToken(key)
+
+def createParams(instruction, symbol, quantity = 1):
 	params = {
 		"orderType": "MARKET",
 		"session": "NORMAL",
@@ -13,7 +25,6 @@ def createParams(instruction, symbol, quantityType, quantity = 1):
 		"orderLegCollection": [
 			{
 				"instruction": instruction,
-				"quantityType": quantityType,
 				"quantity": quantity,
 				"instrument": {
 					"symbol": symbol,
@@ -26,13 +37,16 @@ def createParams(instruction, symbol, quantityType, quantity = 1):
 
 def execAPI(params):
 	url = r"https://api.tdameritrade.com/v1/accounts/{}/savedorders".format(account_id)
-	return requests.get(url, params = params)
+	headers = {'Authorization':'Bearer {}'.format(access_token),
+				'Content-Type':'application/json'
+			}
+	return requests.post(url,headers=headers,params=params)
 
 def sell(sym):
-	return execAPI(createParams("Sell", sym, "ALL_SHARES"))
+	return execAPI(createParams("Sell", sym))
 
 def buy(sym,val):
-	return execAPI(createParams("Buy", sym, "DOLLARS", val))
+	return execAPI(createParams("Buy", sym, val))
 
 def get_quotes(**kwargs):
 	# Define endpoint URL
@@ -46,3 +60,5 @@ def get_quotes(**kwargs):
 
 	# Create request, with URL and parameters
 	return requests.get(url, params=params).json()
+
+print(buy('AAPL',2))
