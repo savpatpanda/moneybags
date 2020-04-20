@@ -3,26 +3,15 @@ import requests
 def getToken(key):
 	url = r"https://api.tdameritrade.com/v1/oauth2/token"
 	headers = {
-<<<<<<< HEAD
-		'Content-Type':'application/x-www-form-urlencoded'
-=======
 		'Content-Type': 'application/x-www-form-urlencoded',
 		'cache-control': 'no-cache'
->>>>>>> 005b1991c714b9164cb76d6dc518461b9e32ca7d
 	}
 	params = {
 		"grant_type":'refresh_token',
 		"refresh_token":'UNG9qUd148KVE+eUwqTUr221/BlFritvVlYKpuPhkuu0hYQ5YkdmKhsz+Znnx7ttvEBskgBVRrM7K8GXk+GOdGDQELfNPXcdW+ij1TZJXNuRLJhOted9qQY2qFpWQB8YV7V98rE/xb74bEv5xIOkQJKL6PzzKUVgnK8oolAD5ohnlArGRNz5Ubp3x9nPgWIJxio4biKDwoWvtWDClPQW4GA8YHmG92EpCWmT12WGxbt7jGkQeOp3nGVU+ZgsvXgoBMn/ZvWQ/kSA8lvZhxW4Qnymt8cnoRseA5315lF6We01kys/YN8DEPIAQRjRfYJjUv4arw3nQqQslIKhVg+g3aZzANDQx0xCpI/SEAbGtPquaJDX5wv6V8EMyZHYksg3obOjjYAcz9sLWq040wmmIknQRfVJDTgDxf7BY5ItJCC2YbHksPNgg/pwVSD100MQuG4LYrgoVi/JHHvl0W57fDOmbQYAuZAumAzaRQtA/9M2uaoi9hIxFUdoysP3yar3D4E+9UPRv5fNXRSULTLDv5nlCROeS6opfSCuADa71ziNsNCjDP7ZpRiKquSRuH+sD/jCystklI2PLc3auOZzCaTNapVwxhovbwOJxEgfGQJ9x7LVgzdZLAYz6mitGdpHc3HTLTTfJkA8h/Bi+Hk5n9Rbg5bLPH+5BFtozfDTXnAFclvz3DQiUia1WF19tEoMd9TZvtC9VMrT8Nb3F7SV3eQd/aF0FFjylhZqANb4IHa16d0/OYMIsPFJkcYnQpmxSya2vfAOKHGamor1YjG2HPp2yMSlTMl33Tc6xUUBsdxhRNtCH01u7vW9OoCfzJhsj8FNKdcy8qtDJ6qN47UkOmH/5XrHc5fToXeajCLwhKwuzCix8Q+/LwO9QzYCVRkmxPEwpLm2OcE=212FD3x19z9sWBHDJACbC00B75E',
 		"client_id": 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
 	}
-<<<<<<< HEAD
 	return requests.post(url,data = params, headers=headers).json()['access_token']
-=======
-	obj = requests.post(url=url, headers = headers, params = params)
-	print(obj.json())
-	print(obj.status_code)
-	return obj
->>>>>>> 005b1991c714b9164cb76d6dc518461b9e32ca7d
 
 account_id = "454685471" #your account number
 key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
