@@ -35,11 +35,12 @@ def initializeDB():
 
 		s = []
 		inflections = []
-		d = np.mean(s)
 
 		for j in range(len(v)-1):
 			slope = (v[j+1]-v[j])/v[j]*100
 			s.append(slope)
+
+		d = np.mean(s)
 
 		for j in range(len(s)-1):
 			if(s[j]==0):
