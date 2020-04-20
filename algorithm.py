@@ -61,18 +61,18 @@ def update_vals(old):
 
 	new_val = get_quotes(symbol=old['_id'])
 	vals.append(new_val)
-	new_slope = (vals[len(vals)-1] - vals[len(vals)-2])/vals[len(vals)-2]*100 #percent change in new minute
+	new_slope = (vals[-1] - vals[-2])/vals[-2]*100 #percent change in new minute
 	slopes.append(new_slope)
-	new_infl = (slopes[len(slopes)-1]-slopes[len(slopes)-2])/slopes[len(slopes)-2]*100 #percent change of slopes in new minute
+	new_infl = (slopes[-1]-slopes[-2])/slopes[-2]*100 #percent change of slopes in new minute
 	infl.append(new_infl)
-	direct = np.mean(slopes[len(slopes)-direction_check:])
+	direct = np.mean(slopes[-direction_check:])
 
 	vals.pop(0)
 	slopes.pop(0)
 	infl.pop(0)
 
-	obj = {"_id":sym,"vals":vals,"slopes":slopes,"infl":infl,"dir":direct}
-	collection.update(obj)
+	obj = {"_id":old['_id'],"vals":vals,"slopes":slopes,"infl":infl,"dir":direct}
+	collection.update_one(obj)
 	return obj
 
 def decision(obj):
@@ -83,10 +83,10 @@ def decision(obj):
 	wait = obj["wait"]
 
 	high = max(vals)
-	drop = (high - vals[len(vals)-1]) / high*100
+	drop = (high - vals[-1]) / high*100
 
 	low = min(vals)
-	rise = (low - vals[len(vals)-1])/low*100
+	rise = (low - vals[-1])/low*100
 
 	if(abs(drop)>change_min and direct<0):
 		if(wait>=wait_time):
@@ -124,19 +124,19 @@ def update():
 	buy_matrix = sorted(buy_matrix)
 
 	while len(sell_matrix)>0:
-		sell(sell_matrix[len(sell_matrix)-1][1])
-		sell_matrix.pop(len(buy_matrix)-1)
+		sell(sell_matrix[-1][1])
+		sell_matrix.pop()
 
 	#retrieve balances after sell-offs
 	balance = 100
 
 	while len(buy_matrix)>0 and balance>0:
-		buy(buy_matrix[len(buy_matrix)-1][1])
-		buy_matrix.pop(len(buy_matrix)-1)
+		buy(buy_matrix[-1][1])
+		buy_matrix.pop()
 
 if __name__ == "__main__":
 	while(1):
-		time.sleep(1)
+		time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
 			update()
 	print("moneybags v1")
