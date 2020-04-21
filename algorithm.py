@@ -7,6 +7,8 @@ import time
 import sys
 import traceback
 import sim
+import collections
+
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
 #update balance in update() when money enters account
@@ -29,6 +31,7 @@ cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mong
 db = cluster["test"]
 collection = db["test"]
 currentFile = None
+db = None
 
 def initializeDB():
 	#initializing values in database
@@ -63,19 +66,28 @@ def initializeDB():
 def getBalance():
 	return 1
 
-def update_vals(old):
-	vals = old["vals"]
-	slopes = old["slopes"]
-	infl = old["infl"]
-	wait = old["wait"]
+def dbLoad() -> collections.defaultdict:
+	m = collections.defaultdict(lambda: {})
+	cursor = collection.find({})
+	for doc in cursor:
+		equity = doc['_id']
+		for key, value in doc.items():
+			if key != '_id':
+				m[equity][key] = value
+	return m
 
-	new_val = get_quotes(symbol=old['_id']) if not SIM else sim.get_quotes(old['_id'])
+def dbPut(db):
+	for key, value in db.items():
+		collection.update_one({"_id": key}, {"$set": value})
+
+def update_vals(e):
+	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
+
+	new_val = get_quotes(symbol=e) if not SIM else sim.get_quotes(e)
 	if new_val is None:
-		currentFile.write("get_quotes returned null for %s\n" % old['_id'])
+		currentFile.write("get_quotes returned null for %s\n" % e)
 		return new_val
-	#print("%s, last slopes: %s, last vals: %s" % (old["_id"], old["slopes"][-5:], old["vals"][-5:]))
-	#print("\nprint new value:\n")
-	#new_val = float(input())
+
 	vals.append(new_val)
 	new_slope = (vals[-1] - vals[-2])/vals[-2]*100 #percent change in new minute
 	slopes.append(new_slope)
@@ -88,16 +100,13 @@ def update_vals(old):
 	slopes.pop(0)
 	infl.pop(0)
 
-	obj = {"_id":old['_id'], "vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": wait}
-	collection.update_one({"_id": old["_id"]}, {"$set": {"vals":vals,"slopes":slopes,"infl":infl,"dir":direct, "wait": wait}})
-	return obj
+	return db[e]
 
 def decision(obj):
 	vals =  obj["vals"]
 	slopes =  obj["slopes"]
 	infl =  obj["infl"]
 	direct =  obj["dir"] #buy or sell
-	wait = obj["wait"]
 
 	high = max(vals[:-60])
 	drop = (vals[-1] - high) / high*100
@@ -109,34 +118,32 @@ def decision(obj):
 	if(drop < -change_min):
 		if(wait>=wait_time):
 			if(np.mean(slopes[-wait_time:])<0):
-				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				obj["wait"] = 0
 				return (0,0)
 			else:
-				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				obj["wait"] = 0
 				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
 				currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(drop,'buy')
 		else:
 			#print("increasing wait")
-			new_wait = wait + 1
-			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
+			obj["wait"] += 1
 			return (0, 0)
 	elif(rise > change_min):
 		if(wait>=wait_time):
 			if(np.mean(slopes[-wait_time:])>0):
-				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				obj["wait"] = 0
 				return (0, 0)
 			else:
-				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
+				obj["wait"] = 0
 				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
 				currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(rise,'sell')
 		else:
 			#print("increasing wait")
-			new_wait = wait + 1
-			collection.update_one({"_id":obj['_id']},{"$set":{"wait":new_wait}})
+			obj["wait"] += 1
 			return (0, 0)
 	return (0,0)
 
@@ -145,8 +152,8 @@ def update():
 	sell_matrix = []
 	buy_matrix = []
 
-	for i in range(len(symb)):
-		obj = update_vals(collection.find_one({"_id":symb[i]}))
+	for e in symb:
+		obj = update_vals(e)
 		if obj is None:
 			continue
 		dec = decision(obj)
@@ -184,19 +191,20 @@ def loop():
 				update()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			# finally:
-				# cluster.close()
-				# currentFile.close()
-				# exit(1)
 			i += 1
 			if i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+				dbPut(db)
 		else:
-			break
+			dbPut()
+			cluster.close()
+			currentFile.close()
+			exit(1)
 
 if __name__ == "__main__":
-	collection.delete_many({})
-	initializeDB()
+	# collection.delete_many({})
+	# initializeDB()
+	db = dbLoad()
 	print("moneybags v1")
 
 	if len(sys.argv) > 1:
