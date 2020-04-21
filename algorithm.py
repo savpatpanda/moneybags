@@ -4,8 +4,9 @@ import numpy as np
 from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
 import datetime
 import time
+import sys
 import traceback
-
+import sim
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
 #update balance in update() when money enters account
@@ -18,7 +19,7 @@ track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
 change_min = 1 #minimum percentage drop to initiate sequence
 wait_time = 7
-
+SIM = False
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
@@ -64,7 +65,7 @@ def update_vals(old):
 	infl = old["infl"]
 	wait = old["wait"]
 
-	new_val = get_quotes(symbol=old['_id'])
+	new_val = get_quotes(symbol=old['_id']) if not SIM else sim.get_quotes(old['_id'])
 	if new_val is None:
 		currentFile.write("get_quotes returned null for %s\n" % old['_id'])
 		return new_val
@@ -101,7 +102,6 @@ def decision(obj):
 	rise = (vals[-1] - low) / low*100
 
 	
-
 	if(drop < -change_min):
 		if(wait>=wait_time):
 			if(np.mean(slopes[-wait_time:])<0):
@@ -111,7 +111,7 @@ def decision(obj):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
 				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
 				currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-					(datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
+					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(drop,'buy')
 		else:
 			#print("increasing wait")
@@ -127,7 +127,7 @@ def decision(obj):
 				collection.update_one({"_id":obj['_id']},{"$set":{"wait":0}})
 				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
 				currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-					(datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
+					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
 				return(rise,'sell')
 		else:
 			#print("increasing wait")
@@ -155,24 +155,26 @@ def update():
 	buy_matrix = sorted(buy_matrix)
 
 	while len(sell_matrix)>0:
-		sell(sell_matrix[-1][1])
+		# sell(sell_matrix[-1][1])
 		sell_matrix.pop()
 
 	#retrieve balances after sell-offs
 	balance = 100
 
 	while len(buy_matrix)>0 and balance>0:
-		buy(buy_matrix[-1][1])
+		# buy(buy_matrix[-1][1])
 		buy_matrix.pop()
 
 
 def loop():
 	# open today's file
+	global currentFile
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(i > 0):
-		time.sleep(60)
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
+		if not SIM: time.sleep(60)
+		else: print("at sim time step: %d\n" % i)
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30) or SIM:
 			try:
 				update()
 			except Exception as e:
@@ -182,7 +184,7 @@ def loop():
 				# currentFile.close()
 				# exit(1)
 			i += 1
-			if i % 30:
+			if i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 		else:
 			break
@@ -191,4 +193,10 @@ if __name__ == "__main__":
 	#collection.delete_many({})
 	#initializeDB()
 	print("moneybags v1")
+
+	if len(sys.argv) > 1:
+		if sys.argv[1] == 'sim':
+			sim.initializeSim()
+			SIM = True
+
 	loop()
