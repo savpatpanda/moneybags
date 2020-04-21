@@ -10,6 +10,9 @@ import sim
 #things to do:
 #implement checkBalances method in api.py and integrate into sell and buy
 #update balance in update() when money enters account
+#set up positions in cluster
+#create sell and buy dependencies
+#fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
 #user-input
@@ -18,8 +21,9 @@ frequency = 1 #minutes
 track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
 change_min = 1 #minimum percentage drop to initiate sequence
-wait_time = 7
+wait_time = 5
 SIM = False
+
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
@@ -29,7 +33,8 @@ currentFile = None
 def initializeDB():
 	#initializing values in database
 	for i in range(len(symb)):
-		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=1587167940000,startDate=1587139200000)
 		max_length = len(obj)
 
 		v = []

@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 
-sell_index = [144,160,170,194]
-buy_index = [42,58,66,82,345]
-filename = 'GOOG.txt'
+sell_index = [140,146,158,164,192,199,231,267]
+buy_index = [21,28,40,46,58,64,76,82,90,96,124]
+filename = 'sim/GOOG.txt'
 
 val = []
 with open(filename, 'r') as f:	
