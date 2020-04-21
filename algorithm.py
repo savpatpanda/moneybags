@@ -166,13 +166,9 @@ def update():
 
 
 def loop():
-	while(1):
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
-			update()
-		time.sleep(60)
-
 	# open today's file
 	global currentFile
+	global SIM
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(i > 0):
