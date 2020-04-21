@@ -1,3 +1,4 @@
+import math
 import pymongo
 from pymongo import MongoClient
 import numpy as np
@@ -10,10 +11,6 @@ import sim
 import collections
 
 #things to do:
-#implement checkBalances method in api.py and integrate into sell and buy
-#update balance in update() when money enters account
-#set up positions in cluster
-#create sell and buy dependencies
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
@@ -22,9 +19,12 @@ symb = ['AAPL','NFLX','GOOG','HFC','GS','WTI','AMZN','UAL','XOM','IBM']
 frequency = 1 #minutes
 track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
-change_min = 1 #minimum percentage drop to initiate sequence
-wait_time = 5
+change_min = 0.75 #minimum percentage drop to initiate sequence
+wait_time = 7
 SIM = False
+max_proportion = 0.25 #maximum proportion a given equity can ooccupy in brokerage account
+allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
+max_spend = 0.4	#maximum percentage of balance to spend in given trading minute
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -33,11 +33,15 @@ collection = db["test"]
 currentFile = None
 db = None
 
+global balance
+
+balance = getBalance()
+
 def initializeDB():
 	#initializing values in database
 	for i in range(len(symb)):
-		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
-		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=1587167940000,startDate=1587139200000)
+		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=1587167940000,startDate=1587139200000)
 		max_length = len(obj)
 
 		v = []
@@ -60,11 +64,10 @@ def initializeDB():
 				inf = (s[j+1]-s[j])/s[j]*100
 			inflections.append(inf)
 
-		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0}
-		collection.insert_one(post)
+		pos = checkPosition(symb[i])
 
-def getBalance():
-	return 1
+		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}
+		collection.insert_one(post)
 
 def dbLoad() -> collections.defaultdict:
 	m = collections.defaultdict(lambda: {})
@@ -102,50 +105,105 @@ def update_vals(e):
 
 	return db[e]
 
-def decision(obj):
+def buy_sub_decision(symbol,drop):
+	existing = db[symbol]["pos"]
+	cost_basis = existing[0]*existing[1]
+	max_buy_dollars = balance*max_proportion - cost_basis
+	if(cost_basis>=balance*max_proportion):		
+		if(drop < -allow_factor*change_min):
+			return max_buy_dollars
+		else:
+			return 0
+	else:
+		return max_buy_dollars
+
+def buyDecision(obj,symbol):
 	vals =  obj["vals"]
 	slopes =  obj["slopes"]
 	infl =  obj["infl"]
-	direct =  obj["dir"] #buy or sell
+	direct =  obj["dir"]
 
-	high = max(vals[:-60])
+	high = max(vals) #maybe incorporate mean
 	drop = (vals[-1] - high) / high*100
 
-	low = min(vals[:-60])
-	rise = (vals[-1] - low) / low*100
-
-	
 	if(drop < -change_min):
-		if(wait>=wait_time):
+		if(obj["wait"]>=wait_time):
 			if(np.mean(slopes[-wait_time:])<0):
 				obj["wait"] = 0
-				return (0,0)
+				return (0,0,0)
 			else:
-				obj["wait"] = 0
-				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
-				currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
-				return(drop,'buy')
+				numberShares = float(round((buy_sub_decision(symbol,drop) / vals[-1]),5))
+				if(numberShares>0):
+					obj["wait"] = 0
+					hldr = "high : %d, drop %f" % (high, drop)
+					currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
+					return(drop,'buy',numberShares,vals[-1])
+				else:
+					obj["wait"] = 0
+					return (0,0,0)
 		else:
 			#print("increasing wait")
 			obj["wait"] += 1
-			return (0, 0)
-	elif(rise > change_min):
-		if(wait>=wait_time):
-			if(np.mean(slopes[-wait_time:])>0):
-				obj["wait"] = 0
-				return (0, 0)
+			return (0,0,0)
+	else:
+		return (0,0,0)
+
+def sellDecision(obj,symbol):
+	vals =  obj["vals"]
+	slopes =  obj["slopes"]
+	infl =  obj["infl"]
+	direct =  obj["dir"]
+	existing = db[symbol]["pos"]
+	if(existing[1]>0):
+		numberShares = existing[0]
+		avgPrice = existing[1]
+		rise = (vals[-1] - avgPrice) / avgPrice * 100
+		if(rise > change_min):
+			if(obj["wait"]>=wait_time):
+				if(np.mean(slopes[-wait_time:])>0):
+					obj["wait"] = 0
+					return (0,0,0)
+				else:
+					obj["wait"] = 0
+					hldr = "rise %f" % (rise)
+					currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
+					return(rise,'sell',numberShares)
 			else:
-				obj["wait"] = 0
-				hldr = "high : %d low : %d, drop %f, rise %f" % (high, low, drop, rise)
-				currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-					(datetime.datetime.now().strftime("%H %M %S"), obj['_id'], vals[-1], hldr, vals[-10:], slopes[-10:]))
-				return(rise,'sell')
+				#print("increasing wait")
+				obj["wait"] += 1
+				return (0, 0,0)
 		else:
-			#print("increasing wait")
-			obj["wait"] += 1
-			return (0, 0)
-	return (0,0)
+			return (0,0,0)
+	else:
+		return (0,0,0)
+
+def buyAmounts(buy_matrix):
+	sum_drops = 0
+	for i in range(len(buy_matrix)):
+		sum_drops = sum_drops + buy_matrix[i][0]
+
+	for i in range(len(buy_matrix)):
+		prop = buy_matrix[i][0] / sum_drops
+		buy_matrix[i].append(min(round(prop*balance*len(buy_matrix)/buy_matrix[i][3],4),buy_matrix[i][2]))
+	
+	return buy_matrix
+
+def updateBalanceAndPosition(symbol,action,quant,price):
+	global balance
+	print(symbol)
+	old = db[symbol]["pos"]
+	old_quant = old[0]
+	old_price = old[1]
+	if(action=='buy'):
+		balance = balance - quant*price
+		new_quant = old_quant + quant
+		new_price = (old_quant*old_price+quant*price) / new_quant
+		db[symbol]["pos"] = (new_quant,new_price)
+	else:
+		balance = balance + old_quant*old_price
+		db[symbol]["pos"] = (0,0)
 
 def update():
 	# run regularly on minute-by-minute interval
@@ -156,26 +214,34 @@ def update():
 		obj = update_vals(e)
 		if obj is None:
 			continue
-		dec = decision(obj)
-		if(dec[1] == 'sell'):
-			sell_matrix.append((dec[0],obj["_id"]))
-		if(dec[1] == 'buy'):
-			buy_matrix.append((dec[0],obj["_id"]))
+		buyDec = buyDecision(obj,e)
+		sellDec = sellDecision(obj,e)
+		if(sellDec[1] == 'sell'):
+			sell_matrix.append([sellDec[0],e,sellDec[2]])
+		if(buyDec[1] == 'buy'):
+			buy_matrix.append([buyDec[0],e,buyDec[2],buyDec[3]])
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
 
 	while len(sell_matrix)>0:
-		# sell(sell_matrix[-1][1])
+		if(sell_matrix[-1][2]>0.001):
+			sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			print("sell")
+			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,0)
+			time.sleep(1)
 		sell_matrix.pop()
 
-	#retrieve balances after sell-offs
-	balance = 100
+	#retrieve buy amounts for each listed stock after sell-offs
+	buy_matrix = buyAmounts(buy_matrix)
 
 	while len(buy_matrix)>0 and balance>0:
-		# buy(buy_matrix[-1][1])
+		if(buy_matrix[-1][4]>0.001):
+			print("buy")
+			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
+			buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			time.sleep(1)
 		buy_matrix.pop()
-
 
 def loop():
 	# open today's file
@@ -202,8 +268,8 @@ def loop():
 			exit(1)
 
 if __name__ == "__main__":
-	# collection.delete_many({})
-	# initializeDB()
+	collection.delete_many({})
+	initializeDB()
 	db = dbLoad()
 	print("moneybags v1")
 
