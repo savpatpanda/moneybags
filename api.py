@@ -1,4 +1,5 @@
 import requests
+import matplotlib.pyplot as plt
 
 def getToken(key):
 	url = r"https://api.tdameritrade.com/v1/oauth2/token"
@@ -74,7 +75,7 @@ def get_quotes(**kwargs):
 	params = {}
 	params.update({'apikey': key})
 	# Create and fill the symbol_list list with symbols from argument
-	params.update({'symbol': [symbol for symbol in kwargs.get('symbol')]})
+	params.update({'symbol': kwargs.get('symbol')})
 
 	# Create request, with URL and parameters
 	obj = requests.get(url, params=params).json()

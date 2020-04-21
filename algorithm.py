@@ -25,9 +25,8 @@ collection = db["test"]
 
 def initializeDB():
 	#initializing values in database
-	start = int(time.time())-259200000
 	for i in range(len(symb)):
-		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,startDate=start)
+		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
 		max_length = len(obj)
 
 		v = []
@@ -157,12 +156,12 @@ def update():
 
 def loop():
 	while(1):
-		time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
 			update()
+		time.sleep(60)
 
 if __name__ == "__main__":
-	#collection.delete_many({})
-	#initializeDB()
+	collection.delete_many({})
+	initializeDB()
 	print("moneybags v1")
-	loop()
+	#loop()
