@@ -166,11 +166,6 @@ def update():
 
 
 def loop():
-	while(1):
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30):
-			update()
-		time.sleep(60)
-
 	# open today's file
 	global currentFile
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
@@ -197,7 +192,6 @@ if __name__ == "__main__":
 	collection.delete_many({})
 	initializeDB()
 	print("moneybags v1")
-	#loop()
 
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
