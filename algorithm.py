@@ -193,7 +193,6 @@ if __name__ == "__main__":
 	collection.delete_many({})
 	initializeDB()
 	print("moneybags v1")
-	#loop()
 
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
