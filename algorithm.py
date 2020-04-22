@@ -3,6 +3,7 @@ import pymongo
 from pymongo import MongoClient
 import numpy as np
 from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
+from simDataNew import newSIMData
 import datetime
 import time
 import sys
@@ -15,16 +16,21 @@ import collections
 #fix pinging and token requests
 
 #user-input
-symb = ['AAPL','NFLX','GOOG','HFC','GS','WTI','AMZN','UAL','XOM','IBM']
+symb = ['AAPL','NFLX','GOOG','GS','MSFT','FB','IBM','XOM','INTC','GE','AMZN','MRK','TRV','WTI']
 frequency = 1 #minutes
-track = 240 #minutes tracking
+track = 360 #minutes tracking
 direction_check = 15 #minutes for direction calculator
-change_min = 0.75 #minimum percentage drop to initiate sequence
-wait_time = 7
+change_min_buy = 3 #minimum percentage drop to initiate buy sequence
+change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 0.8 #percentage drop before dropping investment in stock
+wait_time_buy = 7
+wait_time_sell = 7
 SIM = False
-max_proportion = 0.25 #maximum proportion a given equity can ooccupy in brokerage account
+max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4	#maximum percentage of balance to spend in given trading minute
+balance = getBalance()
+initialBalance = balance
+max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -33,15 +39,21 @@ collection = db["test"]
 currentFile = None
 db = None
 
-global balance
-
-balance = getBalance()
+''' sim date initialization
+i=20
+yday =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
+yday_end = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
+today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
+end_of_week = int(time.mktime((2020, 4,i+1 , 21, 00, 00, 0, 0, 0))*1000)
+newSIMData(symb,today,end_of_week)
+'''
 
 def initializeDB():
 	#initializing values in database
 	for i in range(len(symb)):
 		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
-		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=1587167940000,startDate=1587139200000)
+		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=yday_end,startDate=yday)
+		time.sleep(1)
 		max_length = len(obj)
 
 		v = []
@@ -63,7 +75,6 @@ def initializeDB():
 			else:
 				inf = (s[j+1]-s[j])/s[j]*100
 			inflections.append(inf)
-
 		pos = checkPosition(symb[i])
 
 		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}
@@ -110,7 +121,7 @@ def buy_sub_decision(symbol,drop):
 	cost_basis = existing[0]*existing[1]
 	max_buy_dollars = balance*max_proportion - cost_basis
 	if(cost_basis>=balance*max_proportion):		
-		if(drop < -allow_factor*change_min):
+		if(drop < -allow_factor*change_min_buy):
 			return max_buy_dollars
 		else:
 			return 0
@@ -123,12 +134,12 @@ def buyDecision(obj,symbol):
 	infl =  obj["infl"]
 	direct =  obj["dir"]
 
-	high = max(vals) #maybe incorporate mean
+	high = max(vals[:-30]) #maybe incorporate mean
 	drop = (vals[-1] - high) / high*100
 
-	if(drop < -change_min):
-		if(obj["wait"]>=wait_time):
-			if(np.mean(slopes[-wait_time:])<0):
+	if(drop < -change_min_buy):
+		if(obj["wait"]>=wait_time_buy):
+			if(np.mean(slopes[-wait_time_buy:])<0):
 				obj["wait"] = 0
 				return (0,0,0)
 			else:
@@ -159,9 +170,15 @@ def sellDecision(obj,symbol):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (vals[-1] - avgPrice) / avgPrice * 100
-		if(rise > change_min):
-			if(obj["wait"]>=wait_time):
-				if(np.mean(slopes[-wait_time:])>0):
+		if(rise < -drop_percent):
+			obj["wait"] = 0
+			hldr = "rise %f" % (rise)
+			currentFile.write("[FORCED SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+				(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
+			return(rise,'sell',numberShares,vals[-1])
+		elif(rise > change_min_sell):
+			if(obj["wait"]>=wait_time_sell):
+				if(np.mean(slopes[-wait_time_sell:])>0):
 					obj["wait"] = 0
 					return (0,0,0)
 				else:
@@ -169,7 +186,7 @@ def sellDecision(obj,symbol):
 					hldr = "rise %f" % (rise)
 					currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
-					return(rise,'sell',numberShares)
+					return(rise,'sell',numberShares,vals[-1])
 			else:
 				#print("increasing wait")
 				obj["wait"] += 1
@@ -183,16 +200,18 @@ def buyAmounts(buy_matrix):
 	sum_drops = 0
 	for i in range(len(buy_matrix)):
 		sum_drops = sum_drops + buy_matrix[i][0]
-
+	if sum_drops >0:
+		totalRelative = 1 - (change_min_buy/sum_drops)
+	else:
+		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(min(round(prop*balance*len(buy_matrix)/buy_matrix[i][3],4),buy_matrix[i][2]))
+		buy_matrix[i].append(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2]))
 	
 	return buy_matrix
 
 def updateBalanceAndPosition(symbol,action,quant,price):
 	global balance
-	print(symbol)
 	old = db[symbol]["pos"]
 	old_quant = old[0]
 	old_price = old[1]
@@ -202,7 +221,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		new_price = (old_quant*old_price+quant*price) / new_quant
 		db[symbol]["pos"] = (new_quant,new_price)
 	else:
-		balance = balance + old_quant*old_price
+		balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
 
 def update():
@@ -217,7 +236,7 @@ def update():
 		buyDec = buyDecision(obj,e)
 		sellDec = sellDecision(obj,e)
 		if(sellDec[1] == 'sell'):
-			sell_matrix.append([sellDec[0],e,sellDec[2]])
+			sell_matrix.append([sellDec[0],e,sellDec[2],sellDec[3]])
 		if(buyDec[1] == 'buy'):
 			buy_matrix.append([buyDec[0],e,buyDec[2],buyDec[3]])
 
@@ -227,8 +246,7 @@ def update():
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
 			sell(sell_matrix[-1][1],sell_matrix[-1][2])
-			print("sell")
-			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,0)
+			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
 			time.sleep(1)
 		sell_matrix.pop()
 
@@ -237,11 +255,23 @@ def update():
 
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
-			print("buy")
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
 			buy(buy_matrix[-1][1],buy_matrix[-1][4])
 			time.sleep(1)
 		buy_matrix.pop()
+
+def report():
+	total_value = balance
+	deltas = []
+	for i in range(len(symb)):	
+		if db[symb[i]]['pos'][1]!=0:
+			delta = (db[symb[i]]["vals"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
+		else:
+			delta = 0
+		print(symb[i]+": "+str(delta)+"%"+"\n")
+		total_value = total_value + db[symb[i]]['pos'][0]*get_quotes(symbol=symb[i])
+	totalChange = (total_value - initialBalance) / total_value *100
+	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 
 def loop():
 	# open today's file
@@ -251,18 +281,22 @@ def loop():
 	i = 1
 	while(i > 0):
 		if not SIM: time.sleep(60)
-		else: print("at sim time step: %d\n" % i)
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,30) or SIM:
+		else: print("at sim time step: %d" % i)
+		print('hi')
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				update()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
 			i += 1
+			if SIM and i==400:
+				report()
+				exit(1)
 			if i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		else:
-			dbPut()
+		elif datetime.datetime.now().time() > datetime.time(16,00):
+			dbPut(db)
 			cluster.close()
 			currentFile.close()
 			exit(1)
