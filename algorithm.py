@@ -36,10 +36,10 @@ initialBalance = balance
 
 #sim date initialization - optional
 i=21
-yday =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
-yday_end = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
-today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-end_of_week = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
+startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
+endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
+startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
+endOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -54,7 +54,7 @@ def initializeDB():
 		if not SIM:
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
 		else:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=yday_end,startDate=yday)
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=endOfSIMInit,startDate=startOfSIMInit)
 		time.sleep(1)
 		max_length = len(obj)
 
@@ -315,6 +315,6 @@ if __name__ == "__main__":
 		if sys.argv[1] == 'sim':
 			sim.initializeSim()
 			SIM = True
-			newSIMData(symb,today,end_of_week)
+			newSIMData(symb,startOfSIMPeriod,endOfSIMPeriod)
 
 	loop()
