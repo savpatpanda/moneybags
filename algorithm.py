@@ -28,9 +28,18 @@ wait_time_sell = 7
 SIM = False
 max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
+max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
+
+#balance init
 balance = getBalance()
 initialBalance = balance
-max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
+
+#sim date initialization - optional
+i=21
+yday =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
+yday_end = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
+today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
+end_of_week = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -38,15 +47,6 @@ db = cluster["test"]
 collection = db["test"]
 currentFile = None
 db = None
-
-#sim date initialization
-i=21
-yday =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
-yday_end = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
-today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-end_of_week = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
-newSIMData(symb,today,end_of_week)
-
 
 def initializeDB():
 	#initializing values in database
@@ -315,5 +315,6 @@ if __name__ == "__main__":
 		if sys.argv[1] == 'sim':
 			sim.initializeSim()
 			SIM = True
+			newSIMData(symb,today,end_of_week)
 
 	loop()
