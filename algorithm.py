@@ -1,15 +1,14 @@
 import math
-import pymongo
-from pymongo import MongoClient
 import numpy as np
-from api import buy, sell, get_quotes, getBalance, checkPosition, get_price_history
+from api import buy, sell, get_quotes, getBalance
 from simDataNew import newSIMData
 import datetime
 import time
 import sys
 import traceback
 import sim
-import collections
+import itertools
+from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 
 #things to do:
 #fix initialization to revert to commented out get_price_historyc call
@@ -33,9 +32,7 @@ initialBalance = balance
 max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
-cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
-db = cluster["test"]
-collection = db["test"]
+collection = getCollection()
 currentFile = None
 db = None
 
@@ -47,53 +44,6 @@ today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
 end_of_week = int(time.mktime((2020, 4,i+1 , 21, 00, 00, 0, 0, 0))*1000)
 newSIMData(symb,today,end_of_week)
 '''
-
-def initializeDB():
-	#initializing values in database
-	for i in range(len(symb)):
-		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
-		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=yday_end,startDate=yday)
-		time.sleep(1)
-		max_length = len(obj)
-
-		v = []
-		for j in range(track):
-			v.append(float(obj[max_length-track+j]['close']))
-
-		s = []
-		inflections = []
-
-		for j in range(len(v)-1):
-			slope = (v[j+1]-v[j])/v[j]*100
-			s.append(slope)
-
-		d = np.mean(s)
-
-		for j in range(len(s)-1):
-			if(s[j]==0):
-				inf = (s[j+1]-s[j])/0.000001*100
-			else:
-				inf = (s[j+1]-s[j])/s[j]*100
-			inflections.append(inf)
-		pos = checkPosition(symb[i])
-
-		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}
-		collection.insert_one(post)
-
-def dbLoad() -> collections.defaultdict:
-	m = collections.defaultdict(lambda: {})
-	cursor = collection.find({})
-	for doc in cursor:
-		equity = doc['_id']
-		for key, value in doc.items():
-			if key != '_id':
-				m[equity][key] = value
-	return m
-
-def dbPut(db):
-	for key, value in db.items():
-		collection.update_one({"_id": key}, {"$set": value})
-
 def update_vals(e):
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
 
@@ -128,18 +78,21 @@ def buy_sub_decision(symbol,drop):
 	else:
 		return max_buy_dollars
 
-def buyDecision(obj,symbol):
-	vals =  obj["vals"]
-	slopes =  obj["slopes"]
-	infl =  obj["infl"]
-	direct =  obj["dir"]
+def buyDecision(obj,symbol, policy):
+	vals, slopes, infl, direct =  obj["vals"], obj["slopes"], obj["infl"], obj["dir"]
+
+	buyThreshold, waitThreshold = change_min_buy, wait_time_buy
+	if policy:
+		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
+		waitThreshold = policy["bwait"] if "bwait" in "policy" else waitThreshold
+
 
 	high = max(vals[:-30]) #maybe incorporate mean
 	drop = (vals[-1] - high) / high*100
 
-	if(drop < -change_min_buy):
-		if(obj["wait"]>=wait_time_buy):
-			if(np.mean(slopes[-wait_time_buy:])<0):
+	if(drop < -buyThreshold):
+		if(obj["wait"]>=waitThreshold):
+			if(np.mean(slopes[-waitThreshold:])<0):
 				obj["wait"] = 0
 				return (0,0,0)
 			else:
@@ -160,25 +113,27 @@ def buyDecision(obj,symbol):
 	else:
 		return (0,0,0)
 
-def sellDecision(obj,symbol):
-	vals =  obj["vals"]
-	slopes =  obj["slopes"]
-	infl =  obj["infl"]
-	direct =  obj["dir"]
-	existing = db[symbol]["pos"]
+def sellDecision(obj,symbol, policy):
+	vals, slopes, infl, direct, existing =  obj["vals"], obj["slopes"], obj["infl"], obj["dir"], db[symbol]["pos"]
+	sellThreshold, waitThreshold, dropThreshold = change_min_sell, wait_time_sell, drop_percent
+	if policy:
+		sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
+		waitThreshold = policy["swait"] if "swait" in policy else waitThreshold
+		dropThreshold = policy["dropsell"] if "dropsell" in policy else dropThreshold
+
 	if(existing[1]>0):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (vals[-1] - avgPrice) / avgPrice * 100
-		if(rise < -drop_percent):
+		if(rise < - dropThreshold):
 			obj["wait"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[FORCED SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
 			return(rise,'sell',numberShares,vals[-1])
-		elif(rise > change_min_sell):
-			if(obj["wait"]>=wait_time_sell):
-				if(np.mean(slopes[-wait_time_sell:])>0):
+		elif(rise > sellThreshold):
+			if(obj["wait"]>= waitThreshold):
+				if(np.mean(slopes[-waitThreshold:])>0):
 					obj["wait"] = 0
 					return (0,0,0)
 				else:
@@ -224,7 +179,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
 
-def update():
+def update(withPolicy = None):
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
 	buy_matrix = []
@@ -233,8 +188,8 @@ def update():
 		obj = update_vals(e)
 		if obj is None:
 			continue
-		buyDec = buyDecision(obj,e)
-		sellDec = sellDecision(obj,e)
+		buyDec = buyDecision(obj,e, withPolicy)
+		sellDec = sellDecision(obj,e, withPolicy)
 		if(sellDec[1] == 'sell'):
 			sell_matrix.append([sellDec[0],e,sellDec[2],sellDec[3]])
 		if(buyDec[1] == 'buy'):
@@ -272,44 +227,72 @@ def report():
 		total_value = total_value + db[symb[i]]['pos'][0]*get_quotes(symbol=symb[i])
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	return totalChange
 
-def loop():
+def loop(maxTimeStep = 1e9, withPolicy = None):
 	# open today's file
 	global currentFile
 	global SIM
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
-	while(i > 0):
+	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
 		else: print("at sim time step: %d" % i)
-		print('hi')
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
-				update()
+				update(withPolicy)
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
 			i += 1
-			if SIM and i==400:
-				report()
-				exit(1)
-			if i % 30 == 0:
+			
+			if not SIM and i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		elif datetime.datetime.now().time() > datetime.time(16,00):
+		elif not SIM and datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
 			cluster.close()
 			currentFile.close()
 			exit(1)
+	if SIM :
+		return report()
+
+def getPolicyScore(policy):
+	db = dbLoad()
+	print("EVALUATING: %s" % policy)
+	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
+
+def optimizeParams():
+	global SIM
+	SIM = True
+	# buy, bwait
+	# sell, swait, dropsell
+	pb, pbwait = [2, 3, 4], [6,7,8]
+	ps, pswait, pds = [1,2,3], [6, 7, 8], [0.7,0.8,0.9]
+
+	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
+	topPolicy = None
+	topScore = 0
+	for buy, bwait, sell, swait, dropsell in combinations:
+		m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell}
+		currentScore = getPolicyScore(m)
+		print("score output: %s" % currentScore)
+		if (currentScore > topScore):
+			topPolicy = m
+			topScore = currentScore
+	printf("\nfound top policy: %s\nscore: %s" % (m, topScore))
+
 
 if __name__ == "__main__":
 	collection.delete_many({})
-	initializeDB()
+	# initializeDB()
 	db = dbLoad()
 	print("moneybags v1")
 
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
-			sim.initializeSim()
 			SIM = True
-
-	loop()
+			loop(maxTimeStep = sim.initializeSim())
+		elif sys.argv[1] == 'opt':
+			optimizeParams()
+	else:
+		loop()
