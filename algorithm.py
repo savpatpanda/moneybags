@@ -15,6 +15,10 @@ import collections
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
+#balance init
+balance = getBalance()
+initialBalance = balance
+
 #user-input
 symb = ['AAPL','NFLX','GOOG','GS','MSFT','FB','IBM','XOM','INTC','GE','AMZN','MRK','TRV','WTI']
 frequency = 1 #minutes
@@ -30,10 +34,6 @@ max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage 
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
 
-#balance init
-balance = getBalance()
-initialBalance = balance
-
 #sim date initialization - optional
 i=21
 startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
@@ -44,7 +44,7 @@ endOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
-collection = db["test"]
+collection = db["Savan"]
 currentFile = None
 db = None
 
