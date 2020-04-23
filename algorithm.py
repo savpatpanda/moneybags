@@ -39,20 +39,22 @@ collection = db["test"]
 currentFile = None
 db = None
 
-''' sim date initialization
-i=20
+#sim date initialization
+i=21
 yday =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
 yday_end = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
 today = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-end_of_week = int(time.mktime((2020, 4,i+1 , 21, 00, 00, 0, 0, 0))*1000)
+end_of_week = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
 newSIMData(symb,today,end_of_week)
-'''
+
 
 def initializeDB():
 	#initializing values in database
 	for i in range(len(symb)):
-		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
-		#obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=yday_end,startDate=yday)
+		if not SIM:
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+		else:
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=yday_end,startDate=yday)
 		time.sleep(1)
 		max_length = len(obj)
 
@@ -282,7 +284,6 @@ def loop():
 	while(i > 0):
 		if not SIM: time.sleep(60)
 		else: print("at sim time step: %d" % i)
-		print('hi')
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				update()
@@ -291,6 +292,9 @@ def loop():
 			i += 1
 			if SIM and i==400:
 				report()
+				dbPut(db)
+				cluster.close()
+				currentFile.close()
 				exit(1)
 			if i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))

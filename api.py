@@ -64,6 +64,8 @@ def checkPosition(sym): ### need to implement this method still
 		return (0,0)
 
 def execAPI(params):
+	global access_token
+	access_token = getToken(key)
 	url = r"https://api.tdameritrade.com/v1/accounts/{}/savedorders".format(account_id)
 	headers = {'Authorization':'Bearer {}'.format(access_token),
 				'Content-Type':'application/json'
