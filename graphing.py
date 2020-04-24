@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 sell_index = [647,1026,1433,1914]
 buy_index = [71,128,995,1046,1569,1609,1633,1649,1665,1681,1697,1777,2306,2439]
-filename = 'sim/GS.txt'
+filename = 'sim/AAPL.txt'
 
 val = []
 with open(filename, 'r') as f:	

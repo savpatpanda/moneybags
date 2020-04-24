@@ -20,26 +20,26 @@ balance = getBalance()
 initialBalance = balance
 
 #user-input
-symb = ['AAPL','NFLX','GOOG','GS','MSFT','FB','IBM','XOM','INTC','GE','AMZN','MRK','TRV','WTI']
+symb = ['SSL','VG','CALM','PBH','HASI','PING','ENSG','SAIA','SFNC','EVR','PACW','NGHC','ROG','DORM','BAND','PSMT','WTI','HFC']
 frequency = 1 #minutes
-track = 360 #minutes tracking
+track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 3 #minimum percentage drop to initiate buy sequence
+change_min_buy = 2.5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 0.8 #percentage drop before dropping investment in stock
-wait_time_buy = 7
-wait_time_sell = 7
+drop_percent = 0.3 #percentage drop before dropping investment in stock
+wait_time_buy = 5
+wait_time_sell = 6
 SIM = False
-max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
 
 #sim date initialization - optional
-i=21
+i=20
 startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
 endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
 startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-endOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 15, 00, 00, 0, 0, 0))*1000)
+endOfSIMPeriod = int(time.mktime((2020, 4,i+1, 15, 00, 00, 0, 0, 0))*1000)
 
 #accessing database
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
@@ -57,7 +57,6 @@ def initializeDB():
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=endOfSIMInit,startDate=startOfSIMInit)
 		time.sleep(1)
 		max_length = len(obj)
-
 		v = []
 		for j in range(track):
 			v.append(float(obj[max_length-track+j]['close']))
@@ -208,7 +207,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2]))
+		buy_matrix[i].append(int(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -271,7 +270,7 @@ def report():
 		else:
 			delta = 0
 		print(symb[i]+": "+str(delta)+"%"+"\n")
-		total_value = total_value + db[symb[i]]['pos'][0]*get_quotes(symbol=symb[i])
+		total_value = total_value + db[symb[i]]['pos'][0]*db[symb[i]]['vals'][-1]
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 
@@ -299,7 +298,7 @@ def loop():
 			if i % 30 == 0:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		elif datetime.datetime.now().time() > datetime.time(16,00):
+		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
 			cluster.close()
 			currentFile.close()
@@ -313,8 +312,8 @@ if __name__ == "__main__":
 
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
+			newSIMData(symb,startOfSIMPeriod,endOfSIMPeriod)
 			sim.initializeSim()
 			SIM = True
-			newSIMData(symb,startOfSIMPeriod,endOfSIMPeriod)
-
+			
 	loop()
