@@ -14,35 +14,35 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 #fix pinging and token requests
 
 #balance init
-balance = 230
+balance = getBalance()
 initialBalance = balance
 
 #user-input
-symb = ['TSLA', 'LMT', 'JNJ', 'JPM', 'V', 'T', 'UNH', 'MA', 'PG', 'HD'] # ['AAPL','NFLX','GOOG','GS','MSFT','FB','IBM','XOM','INTC','GE','AMZN','MRK','TRV','WTI']
-
+symb = ['SSL','VG','CALM','PBH','HASI','PING','ENSG','SAIA','SFNC','EVR','PACW','NGHC','ROG','DORM','BAND','PSMT','WTI','HFC']
+frequency = 1 #minutes
+track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 3 #minimum percentage drop to initiate buy sequence
+change_min_buy = 2.5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 0.8 #percentage drop before dropping investment in stock
-wait_time_buy = 7
-wait_time_sell = 7
+drop_percent = 0.3 #percentage drop before dropping investment in stock
+wait_time_buy = 5
+wait_time_sell = 6
 SIM = False
-max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
-
-
-#sim date initialization - optional
-i = 3
-startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
-endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
-startOfSIMPeriod = int(time.mktime((2020, 4, i + 1 , 8, 30, 00, 0, 0, 0))*1000)
-endOfSIMPeriod = int(time.mktime((2020, 4, i + 19 , 15, 00, 00, 0, 0, 0))*1000)
 
 #accessing database
 collection = getCollection()
 currentFile = None
 db = None
+
+#sim date initialization - optional
+i=20
+startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
+endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
+startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
+endOfSIMPeriod = int(time.mktime((2020, 4,i+1, 15, 00, 00, 0, 0, 0))*1000)
 
 def update_vals(e):
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
@@ -161,7 +161,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2]))
+		buy_matrix[i].append(int(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -200,9 +200,9 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			#time.sleep(1)
+			time.sleep(1)
 		sell_matrix.pop()
 
 	#retrieve buy amounts for each listed stock after sell-offs
@@ -211,8 +211,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			#time.sleep(1)
+			buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -223,7 +223,7 @@ def report():
 			delta = (db[symb[i]]["vals"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
 		else:
 			delta = 0
-		print(symb[i]+": "+str(delta)+"%"+"")
+		print(symb[i]+": "+str(delta)+"%")
 		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["vals"][-1] #get_quotes(symbol=symb[i])
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
@@ -237,7 +237,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	i = 1
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
-		#else: print("at sim time step: %d" % i)
+		else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				update(withPolicy)
@@ -247,7 +247,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			if i % 30 == 0 and not SIM:
 				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		elif not SIM and datetime.datetime.now().time() > datetime.time(16,00):
+		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
 			cluster.close()
 			currentFile.close()
@@ -308,4 +308,3 @@ if __name__ == "__main__":
 	else:
 		loop()
 			
-
