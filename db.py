@@ -1,0 +1,66 @@
+import pymongo
+import collections
+import numpy as np
+from pymongo import MongoClient
+from api import checkPosition, get_price_history
+import time
+cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
+db = cluster["test"]
+collection = db["Ivan"]
+track = 360 #minutes tracking
+def getCollection():
+	return collection
+
+def initializeDB(symb, i, startOfSIMInit, endOfSIMInit, SIM):
+	#initializing values in database
+	for i in range(len(symb)):
+		if not SIM:
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+		else:
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=endOfSIMInit,startDate=startOfSIMInit)
+		time.sleep(1)
+		max_length = len(obj)
+
+		v = []
+		for j in range(track):
+			v.append(float(obj[max_length-track+j]['close']))
+
+		s = []
+		inflections = []
+
+		for j in range(len(v)-1):
+			slope = (v[j+1]-v[j])/v[j]*100
+			s.append(slope)
+
+		d = np.mean(s)
+
+		for j in range(len(s)-1):
+			if(s[j]==0):
+				inf = (s[j+1]-s[j])/0.000001*100
+			else:
+				inf = (s[j+1]-s[j])/s[j]*100
+			inflections.append(inf)
+		pos = checkPosition(symb[i])
+
+		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}
+		collection.insert_one(post)
+
+def dbLoad() -> collections.defaultdict:
+	m = collections.defaultdict(lambda: {})
+	cursor = collection.find({})
+	for doc in cursor:
+		equity = doc['_id']
+		for key, value in doc.items():
+			if key != '_id':
+				m[equity][key] = value
+	return m
+
+def dbPut(db):
+	for key, value in db.items():
+		collection.update_one({"_id": key}, {"$set": value})
+
+def logEOD(): 
+	with open('DATABASE_LOG_END_OF_DAY.txt','w') as f:
+		items = collection.find({})
+		for element in items:
+			f.write(str(element))
