@@ -297,12 +297,12 @@ if __name__ == "__main__":
 	print("moneybags v1")
 	if len(sys.argv) > 1:
 		SIM = True
+		initializeDB(symb, i, startOfSIMInit, endOfSIMInit, SIM)
+		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
+		db = dbLoad()
 		if sys.argv[1] == 'sim':
 			loop(maxTimeStep = sim.initializeSim())
 		elif sys.argv[1] == 'opt':
-			initializeDB(symb, i, startOfSIMInit, endOfSIMInit, SIM)
-			sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
-			db = dbLoad()
 			firstStrat = {"buy": 3, "bwait": 7, "sell":1, "swait":7, "dropsell":0.8}
 			newStrat = {"buy": 2.5, "bwait": 5, "sell": 1, "swait": 6, "dropsell":0.8}
 	else:
