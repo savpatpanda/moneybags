@@ -42,6 +42,7 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			else:
 				inf = (s[j+1]-s[j])/s[j]*100
 			inflections.append(inf)
+
 		pos = checkPosition(symb[i])
 
 		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}

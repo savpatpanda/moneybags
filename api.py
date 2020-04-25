@@ -91,7 +91,13 @@ def get_quotes(**kwargs):
 
 	# Create request, with URL and parameters
 	obj = requests.get(url, params=params).json()
-	return obj[kwargs.get('symbol')]['lastPrice'] if kwargs.get('symbol') in obj else None
+
+	requested_stocks = kwargs.get('symbol').split(',')
+	quotes = []
+	for i in requested_stocks:
+		quotes.append(obj[i]['lastPrice']) if requested_stocks[i] in obj else quotes.append(None)
+
+	return quotes
 
 def get_price_history(**kwargs):
 

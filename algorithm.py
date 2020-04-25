@@ -43,15 +43,16 @@ db = None
 #startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
 #endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
 
-startOfSIMInit = 1587384000000
-endOfSIMInit = 1587427200000
-startOfSIMPeriod = 1587470400000
+startOfSIMInit = 1587643200000
+endOfSIMInit = 1587686400000
+startOfSIMPeriod = 1587729600000
 endOfSIMPeriod = 1587758400000
 
-def update_vals(e):
+def update_vals(e,new_val):
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
 
-	new_val = get_quotes(symbol=e) if not SIM else sim.get_quotes(e)
+	if SIM:
+		new_val = sim.get_quotes(e) 
 	if new_val is None:
 		currentFile.write("get_quotes returned null for %s\n" % e)
 		return new_val
@@ -171,6 +172,12 @@ def buyAmounts(buy_matrix):
 
 def updateBalanceAndPosition(symbol,action,quant,price):
 	global balance
+
+	if symbol not in db:
+		print(symbol)
+	elif "pos" not in db[symbol]:
+		print(symbol)
+
 	old = db[symbol]["pos"]
 	old_quant = old[0]
 	old_price = old[1]
@@ -188,16 +195,22 @@ def update(withPolicy = None):
 	sell_matrix = []
 	buy_matrix = []
 
-	for e in symb:
-		obj = update_vals(e)
+	stringOfStocks = ','.join(symb)
+	quotes = []
+	if not SIM:
+		quotes = get_quotes(symbol=stringOfStocks)
+
+	for e in range(len(symb)):
+		if not SIM: obj = update_vals(symb[e],quotes[e])
+		else: obj = update_vals(symb[e],sim.get_quotes(symb[e]))
 		if obj is None:
 			continue
-		buyDec = buyDecision(obj,e, withPolicy)
-		sellDec = sellDecision(obj,e, withPolicy)
+		buyDec = buyDecision(obj,symb[e], withPolicy)
+		sellDec = sellDecision(obj,symb[e], withPolicy)
 		if(sellDec[1] == 'sell'):
-			sell_matrix.append([sellDec[0],e,sellDec[2],sellDec[3]])
+			sell_matrix.append([sellDec[0],symb[e],sellDec[2],sellDec[3]])
 		if(buyDec[1] == 'buy'):
-			buy_matrix.append([buyDec[0],e,buyDec[2],buyDec[3]])
+			buy_matrix.append([buyDec[0],symb[e],buyDec[2],buyDec[3]])
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
