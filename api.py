@@ -94,8 +94,8 @@ def get_quotes(**kwargs):
 
 	requested_stocks = kwargs.get('symbol').split(',')
 	quotes = []
-	for i in requested_stocks:
-		quotes.append(obj[i]['lastPrice']) if requested_stocks[i] in obj else quotes.append(None)
+	for i in range(len(requested_stocks)):
+		quotes.append(obj[requested_stocks[i]]['lastPrice']) if requested_stocks[i] in obj else quotes.append(None)
 
 	return quotes
 
