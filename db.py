@@ -4,14 +4,16 @@ import numpy as np
 from pymongo import MongoClient
 from api import checkPosition, get_price_history
 import time
+
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
-collection = db["Ivan"]
-track = 360 #minutes tracking
+collection = db["Savan"]
+track = 300 #minutes tracking
+
 def getCollection():
 	return collection
 
-def initializeDB(symb, i, startOfSIMInit, endOfSIMInit, SIM):
+def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
 		if not SIM:

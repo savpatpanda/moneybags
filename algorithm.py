@@ -18,15 +18,14 @@ balance = getBalance()
 initialBalance = balance
 
 #user-input
-symb = ['SSL','VG','CALM','PBH','HASI','PING','ENSG','SAIA','SFNC','EVR','PACW','NGHC','ROG','DORM','BAND','PSMT','WTI','HFC']
+symb = ['SSL','VG','CALM','PBH','HASI','PING','ENSG','SAIA','SFNC','EVR','PACW','NGHC','DORM','BAND','PSMT','WTI','HFC']
 frequency = 1 #minutes
-track = 240 #minutes tracking
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 2.5 #minimum percentage drop to initiate buy sequence
-change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
+change_min_buy = 1.5 #minimum percentage drop to initiate buy sequence
+change_min_sell = 0.75 #minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 0.3 #percentage drop before dropping investment in stock
-wait_time_buy = 5
-wait_time_sell = 6
+wait_time_buy = 7
+wait_time_sell = 7
 SIM = False
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
@@ -38,11 +37,16 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-i=20
-startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
-endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
-startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-endOfSIMPeriod = int(time.mktime((2020, 4,i+1, 15, 00, 00, 0, 0, 0))*1000)
+#i=13
+#startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
+#endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
+#startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
+#endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
+
+startOfSIMInit = 1587384000000
+endOfSIMInit = 1587427200000
+startOfSIMPeriod = 1587470400000
+endOfSIMPeriod = 1587758400000
 
 def update_vals(e):
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
@@ -84,7 +88,7 @@ def buyDecision(obj,symbol, policy):
 	buyThreshold, waitThreshold = change_min_buy, wait_time_buy
 	if policy:
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
-		waitThreshold = policy["bwait"] if "bwait" in "policy" else waitThreshold
+		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
 
 	high = max(vals[:-30]) #maybe incorporate mean
@@ -200,9 +204,9 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			time.sleep(1)
+			#time.sleep(1)
 		sell_matrix.pop()
 
 	#retrieve buy amounts for each listed stock after sell-offs
@@ -211,8 +215,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			time.sleep(1)
+			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			#time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -223,7 +227,7 @@ def report():
 			delta = (db[symb[i]]["vals"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
 		else:
 			delta = 0
-		print(symb[i]+": "+str(delta)+"%")
+		#print(symb[i]+": "+str(delta)+"%")
 		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["vals"][-1] #get_quotes(symbol=symb[i])
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
@@ -236,8 +240,8 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
-		if not SIM: time.sleep(60)
-		else: print("at sim time step: %d" % i)
+		#if not SIM: time.sleep(60)
+		#else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				update(withPolicy)
@@ -269,42 +273,53 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [1.5, 3], [1,3]
-	ps, pswait, pds = [0.5, 0.6, 0.8], [6], [0.1]
+	pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
+	ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.1,0.3,0.5]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
 	topPolicy = None
 	topScore = 0
 	minScore = 1e9
 	minPolicy = None
-	for buy, bwait, sell, swait, dropsell in combinations:
-		print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
-		m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell}
-		currentScore = getPolicyScore(m)
-		print("score output: %s" % currentScore)
-		if (currentScore > topScore):
-			topPolicy = m
-			topScore = currentScore
-		if (currentScore < minScore):
-			minPolicy = m
-			minScore = currentScore
-	print("\nfound top policy: %s\nscore: %s" % (topPolicy, topScore))
-	print("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 
+	combinations_store = 'combinations_store.log'
+
+	with open(combinations_store,'w') as f:
+
+		for buy, bwait, sell, swait, dropsell in combinations:
+			print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
+			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell}
+			currentScore = getPolicyScore(m)
+			print(m)
+			print("score output: %s" % currentScore)
+			if (currentScore > topScore):
+				topPolicy = m
+				topScore = currentScore
+			if (currentScore < minScore):
+				minPolicy = m
+				minScore = currentScore
+			f.write("\nPolicy: %s\nscore: %s\n" % (m, currentScore))
+
+		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
+		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
+		f.close()
 
 if __name__ == "__main__":
-	# collection.delete_many({})
+	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
 		SIM = True
-		initializeDB(symb, i, startOfSIMInit, endOfSIMInit, SIM)
+		initializeDB(symb, startOfSIMInit, endOfSIMInit, SIM)
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
 			loop(maxTimeStep = sim.initializeSim())
 		elif sys.argv[1] == 'opt':
-			firstStrat = {"buy": 3, "bwait": 7, "sell":1, "swait":7, "dropsell":0.8}
-			newStrat = {"buy": 2.5, "bwait": 5, "sell": 1, "swait": 6, "dropsell":0.8}
+			#firstStrat = {"buy": 3, "bwait": 7, "sell":1, "swait":7, "dropsell":0.8}
+			#newStrat = {"buy": 2.5, "bwait": 5, "sell": 1, "swait": 6, "dropsell":0.8}
+			optimizeParams()
 	else:
+		initializeDB(symb)
+		db = dbLoad()
 		loop()
 			

@@ -44,7 +44,7 @@ def getBalance():
 	}
 	return requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']['availableFunds']
 
-def checkPosition(sym): ### need to implement this method still
+def checkPosition(sym): 
 	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
 	params = {
 		"fields":'positions'
