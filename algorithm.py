@@ -191,6 +191,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		db[symbol]["pos"] = (0,0)
 
 def update(withPolicy = None):
+	global balance
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
 	buy_matrix = []
@@ -221,6 +222,9 @@ def update(withPolicy = None):
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
 			#time.sleep(1)
 		sell_matrix.pop()
+
+	if not SIM:
+		balance = getBalance()
 
 	#retrieve buy amounts for each listed stock after sell-offs
 	buy_matrix = buyAmounts(buy_matrix)
