@@ -9,6 +9,7 @@ cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mong
 db = cluster["test"]
 collection = db["Savan"]
 track = 300 #minutes tracking
+frequency = 1
 
 def getCollection():
 	return collection
@@ -17,12 +18,12 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
 		if not SIM:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,periodType='day',period=1)
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=1)
 		else:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,endDate=endOfSIMInit,startDate=startOfSIMInit)
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=endOfSIMInit,startDate=startOfSIMInit)
 		time.sleep(1)
 		max_length = len(obj)
-
+		print(symb[i])
 		v = []
 		for j in range(track):
 			v.append(float(obj[max_length-track+j]['close']))

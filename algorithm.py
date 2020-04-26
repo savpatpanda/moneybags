@@ -17,19 +17,19 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 balance = getBalance()
 initialBalance = balance
 
-#user-input
-symb = ['SSL','VG','CALM','PBH','HASI','PING','ENSG','SAIA','SFNC','EVR','PACW','NGHC','DORM','BAND','PSMT','WTI','HFC']
+#user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
+symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 frequency = 1 #minutes
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 1.5 #minimum percentage drop to initiate buy sequence
+change_min_buy = 2.5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 0.75 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 0.3 #percentage drop before dropping investment in stock
-wait_time_buy = 7
-wait_time_sell = 7
+drop_percent = 0.5 #percentage drop before dropping investment in stock
+wait_time_buy = 1
+wait_time_sell = 6
 SIM = False
-max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.5 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.15*balance #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 collection = getCollection()
@@ -43,9 +43,9 @@ db = None
 #startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
 #endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
 
-startOfSIMInit = 1587643200000
-endOfSIMInit = 1587686400000
-startOfSIMPeriod = 1587729600000
+startOfSIMInit = 1586174400000
+endOfSIMInit = 1586217600000
+startOfSIMPeriod = 1586260800000
 endOfSIMPeriod = 1587758400000
 
 def update_vals(e,new_val):
@@ -92,7 +92,7 @@ def buyDecision(obj,symbol, policy):
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
 
-	high = max(vals[:-30]) #maybe incorporate mean
+	high = max(vals[:-30]) #maybe incorporate mean - high = max(vals[:-60])
 	drop = (vals[-1] - high) / high*100
 
 	if(drop < -buyThreshold):
@@ -215,6 +215,7 @@ def update(withPolicy = None):
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
+	#buy_matrix = buy_matrix[0:2]
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
@@ -291,7 +292,7 @@ def optimizeParams():
 	# sell, swait, dropsell
 	
 	pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
-	ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.1,0.3,0.5]
+	ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
 	topPolicy = None

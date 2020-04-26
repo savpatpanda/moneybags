@@ -1,5 +1,6 @@
 import requests
 import matplotlib.pyplot as plt
+import time
 
 def getToken(key):
 	url = r"https://api.tdameritrade.com/v1/oauth2/token"
@@ -111,4 +112,5 @@ def get_price_history(**kwargs):
 		params.update(parameter)
 
 	obj = requests.get(url, params=params).json()['candles']
+	time.sleep(2)
 	return obj
