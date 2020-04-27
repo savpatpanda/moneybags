@@ -3305,7 +3305,6 @@ Null
 Null
 Null
 Null
-CLOSE
 Null
 Null
 Null
@@ -3456,7 +3455,6 @@ Null
 Null
 Null
 Null
-OPEN
 Null
 Null
 Null
@@ -4147,7 +4145,6 @@ Null
 Null
 Null
 Null
-CLOSE
 Null
 Null
 Null
@@ -4298,7 +4295,6 @@ Null
 Null
 Null
 Null
-OPEN
 Null
 Null
 Null
@@ -9199,7 +9195,6 @@ Null
 Null
 Null
 Null
-CLOSE
 Null
 Null
 Null
@@ -9350,7 +9345,6 @@ Null
 Null
 Null
 Null
-OPEN
 Null
 Null
 Null
@@ -10041,7 +10035,6 @@ Null
 Null
 Null
 Null
-CLOSE
 Null
 Null
 Null
@@ -10192,7 +10185,6 @@ Null
 Null
 Null
 Null
-OPEN
 Null
 Null
 Null

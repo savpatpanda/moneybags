@@ -38,10 +38,11 @@ def generateSim(symb,starter,endofweek):
 		with open(filename,'w') as f:
 			current_index = 0
 			for j in range(initial,final+1,1):
-				if datetime.fromtimestamp(j*60).hour==9 and datetime.fromtimestamp(j*60).minute == 30:
-					f.write("OPEN\n")
-				elif datetime.fromtimestamp(j*60).hour==4 and datetime.fromtimestamp(j*60).minute == 0:
-					f.write("CLOSE\n")
+				if datetime.fromtimestamp(j*60).weekday() <=4:
+					if datetime.fromtimestamp(j*60).hour==9 and datetime.fromtimestamp(j*60).minute == 30:
+						f.write("OPEN\n")
+					elif datetime.fromtimestamp(j*60).hour==4 and datetime.fromtimestamp(j*60).minute == 0:
+						f.write("CLOSE\n")
 				if(current_index > len(obj)):
 					break
 				if(datetime.fromtimestamp(j*60).hour < 7 or datetime.fromtimestamp(j*60).hour > 20):

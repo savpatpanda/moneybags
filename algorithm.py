@@ -16,18 +16,20 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 #balance init
 balance = getBalance()
 initialBalance = balance
+unsettled_today = 0
+unsettled_yday = 0
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-frequency = 1 #minutes
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 2.5 #minimum percentage drop to initiate buy sequence
+change_min_buy = 2 #minimum percentage drop to initiate buy sequence
 change_min_sell = 0.75 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 0.5 #percentage drop before dropping investment in stock
+drop_percent = 1 #percentage drop before dropping investment in stock
 wait_time_buy = 1
-wait_time_sell = 6
+wait_time_sell = 4
 SIM = False
 active_trading = False
+counter_close = 0
 max_proportion = 0.5 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
@@ -50,7 +52,7 @@ startOfSIMPeriod = 1586260800000
 endOfSIMPeriod = 1587758400000
 
 def update_vals(e,new_val):
-	global active_trading
+	global active_trading, counter_close
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
 
 	if SIM and new_val =="Null":
@@ -60,6 +62,7 @@ def update_vals(e,new_val):
 		return None
 	elif SIM and new_val =="CLOSE":
 		active_trading = False
+		counter_close = counter_close + 1
 		return None
 	elif SIM:
 		new_val = float(new_val)
@@ -181,13 +184,21 @@ def buyAmounts(buy_matrix):
 	
 	return buy_matrix
 
-def updateBalanceAndPosition(symbol,action,quant,price):
-	global balance
+def balanceUpdater(endofterm = False):
+	global balance, unsettled_today, unsettled_yday, counter_close
+	if not endofterm:
+		if not active_trading and counter_close == len(symb):
+			balance = balance + unsettled_yday
+			unsettled_yday = unsettled_today
+			unsettled_today = 0
+			counter_close = 0
+	else:
+		balance = balance + unsettled_today + unsettled_yday
+		unsettled_today = 0
+		unsettled_yday = 0
 
-	if symbol not in db:
-		print(symbol)
-	elif "pos" not in db[symbol]:
-		print(symbol)
+def updateBalanceAndPosition(symbol,action,quant,price):
+	global balance, unsettled_today, unsettled_yday
 
 	old = db[symbol]["pos"]
 	old_quant = old[0]
@@ -198,7 +209,10 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		new_price = (old_quant*old_price+quant*price) / new_quant
 		db[symbol]["pos"] = (new_quant,new_price)
 	else:
-		balance = balance + old_quant*price
+		if SIM:
+			unsettled_today = unsettled_today + old_quant*price
+		else:
+			balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
 
 def update(withPolicy = None):
@@ -231,7 +245,7 @@ def update(withPolicy = None):
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
-	#buy_matrix = buy_matrix[0:2]
+	buy_matrix = buy_matrix[0:1]
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
@@ -278,6 +292,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 		#else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
+				balanceUpdater()
 				update(withPolicy)
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
@@ -291,13 +306,16 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			currentFile.close()
 			exit(1)
 	if SIM :
+		balanceUpdater(endofterm = True)
 		return report()
 
 def getPolicyScore(policy):
 	global db
-	global balance
+	global balance, counter_close, active_trading
 	db = dbLoad()
 	balance = initialBalance
+	counter_close = 0
+	active_trading = False
 	print("EVALUATING: %s" % policy)
 	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
 
@@ -307,8 +325,11 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
-	ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
+	pb, pbwait = [2, 2.5], [1]
+	ps, pswait, pds = [0.75], [4], [1]
+
+	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
+	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
 	topPolicy = None
