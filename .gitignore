@@ -132,3 +132,4 @@ tutorial
 .DS_Store
 *.out
 *.log
+sim/
