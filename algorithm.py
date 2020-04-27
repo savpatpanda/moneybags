@@ -309,6 +309,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
 			currentFile.close()
+			logEOD()
 			exit(1)
 	if SIM :
 		balanceUpdater(endofterm = True)
