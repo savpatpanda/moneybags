@@ -27,6 +27,7 @@ drop_percent = 0.5 #percentage drop before dropping investment in stock
 wait_time_buy = 1
 wait_time_sell = 6
 SIM = False
+active_trading = False
 max_proportion = 0.5 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
@@ -49,11 +50,21 @@ startOfSIMPeriod = 1586260800000
 endOfSIMPeriod = 1587758400000
 
 def update_vals(e,new_val):
+	global active_trading
 	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
 
-	if SIM:
-		new_val = sim.get_quotes(e) 
-	if new_val is None:
+	if SIM and new_val =="Null":
+		return None
+	elif SIM and new_val =="OPEN":
+		active_trading = True
+		return None
+	elif SIM and new_val =="CLOSE":
+		active_trading = False
+		return None
+	elif SIM:
+		new_val = float(new_val)
+
+	if not SIM and new_val is None:
 		currentFile.write("get_quotes returned null for %s\n" % e)
 		return new_val
 
@@ -202,16 +213,21 @@ def update(withPolicy = None):
 		quotes = get_quotes(symbol=stringOfStocks)
 
 	for e in range(len(symb)):
-		if not SIM: obj = update_vals(symb[e],quotes[e])
-		else: obj = update_vals(symb[e],sim.get_quotes(symb[e]))
+		if not SIM: 
+			obj = update_vals(symb[e],quotes[e])
+		else: 
+			obj = update_vals(symb[e],sim.get_quotes(symb[e]))
+
 		if obj is None:
 			continue
-		buyDec = buyDecision(obj,symb[e], withPolicy)
-		sellDec = sellDecision(obj,symb[e], withPolicy)
-		if(sellDec[1] == 'sell'):
-			sell_matrix.append([sellDec[0],symb[e],sellDec[2],sellDec[3]])
-		if(buyDec[1] == 'buy'):
-			buy_matrix.append([buyDec[0],symb[e],buyDec[2],buyDec[3]])
+
+		if active_trading:
+			buyDec = buyDecision(obj,symb[e], withPolicy)
+			sellDec = sellDecision(obj,symb[e], withPolicy)
+			if(sellDec[1] == 'sell'):
+				sell_matrix.append([sellDec[0],symb[e],sellDec[2],sellDec[3]])
+			if(buyDec[1] == 'buy'):
+				buy_matrix.append([buyDec[0],symb[e],buyDec[2],buyDec[3]])
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
