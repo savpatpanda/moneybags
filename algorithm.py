@@ -22,16 +22,16 @@ unsettled_yday = 0
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 2 #minimum percentage drop to initiate buy sequence
-change_min_sell = 0.75 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 1 #percentage drop before dropping investment in stock
-wait_time_buy = 1
-wait_time_sell = 4
+change_min_buy = 4 #minimum percentage drop to initiate buy sequence
+change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 3 #percentage drop before dropping investment in stock
+wait_time_buy = 50
+wait_time_sell = 80
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.5 #maximum proportion a given equity can occupy in brokerage account
-allow_factor = 3 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
+max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
+allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
@@ -46,10 +46,10 @@ db = None
 #startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
 #endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
 
-startOfSIMInit = 1586174400000
-endOfSIMInit = 1586217600000
-startOfSIMPeriod = 1586260800000
-endOfSIMPeriod = 1587758400000
+startOfSIMInit = 1587729600000
+endOfSIMInit = 1587772800000
+startOfSIMPeriod = 1587985200000
+endOfSIMPeriod = 1588017600000
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
@@ -63,6 +63,8 @@ def update_vals(e,new_val):
 	elif SIM and new_val =="CLOSE":
 		active_trading = False
 		counter_close = counter_close + 1
+		return None
+	elif SIM and new_val == None:
 		return None
 	elif SIM:
 		new_val = float(new_val)
@@ -186,16 +188,18 @@ def buyAmounts(buy_matrix):
 
 def balanceUpdater(endofterm = False):
 	global balance, unsettled_today, unsettled_yday, counter_close
-	if not endofterm:
-		if not active_trading and counter_close == len(symb):
-			balance = balance + unsettled_yday
-			unsettled_yday = unsettled_today
+	if SIM:
+		if not endofterm:
+			if not active_trading and counter_close == len(symb):
+				balance = balance + unsettled_yday
+				unsettled_yday = unsettled_today
+				unsettled_today = 0
+				counter_close = 0
+				report()
+		else:
+			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
-			counter_close = 0
-	else:
-		balance = balance + unsettled_today + unsettled_yday
-		unsettled_today = 0
-		unsettled_yday = 0
+			unsettled_yday = 0
 
 def updateBalanceAndPosition(symbol,action,quant,price):
 	global balance, unsettled_today, unsettled_yday
@@ -210,6 +214,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		db[symbol]["pos"] = (new_quant,new_price)
 	else:
 		if SIM:
+			#balance = balance + old_quant * price
 			unsettled_today = unsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
@@ -235,7 +240,7 @@ def update(withPolicy = None):
 		if obj is None:
 			continue
 
-		if active_trading:
+		if active_trading or not SIM:
 			buyDec = buyDecision(obj,symb[e], withPolicy)
 			sellDec = sellDecision(obj,symb[e], withPolicy)
 			if(sellDec[1] == 'sell'):
@@ -249,12 +254,12 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			#time.sleep(1)
+			time.sleep(1)
 		sell_matrix.pop()
 
-	if not SIM:
+	if not SIM and len(buy_matrix)>0:
 		balance = getBalance()
 
 	#retrieve buy amounts for each listed stock after sell-offs
@@ -263,8 +268,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			#time.sleep(1)
+			buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -277,6 +282,7 @@ def report():
 			delta = 0
 		#print(symb[i]+": "+str(delta)+"%")
 		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["vals"][-1] #get_quotes(symbol=symb[i])
+	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return totalChange
@@ -302,7 +308,6 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
-			cluster.close()
 			currentFile.close()
 			exit(1)
 	if SIM :
@@ -325,8 +330,8 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [2, 2.5], [1]
-	ps, pswait, pds = [0.75], [4], [1]
+	pb, pbwait = [4], [50,60,70]
+	ps, pswait, pds = [3], [70,80,90], [1,2,3]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
@@ -360,6 +365,7 @@ def optimizeParams():
 		f.close()
 
 if __name__ == "__main__":
+	print(getBalance())
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
@@ -377,4 +383,3 @@ if __name__ == "__main__":
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
-			
