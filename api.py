@@ -43,7 +43,7 @@ def getBalance():
 	headers = {
 		"Authorization":"Bearer {}".format(access_token)
 	}
-	return requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']['availableFundsNonMarginableTrade']
+	return requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']['cashAvailableForTrading']
 
 def checkPosition(sym): 
 	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
@@ -67,7 +67,7 @@ def checkPosition(sym):
 def execAPI(params):
 	global access_token
 	access_token = getToken(key)
-	url = r"https://api.tdameritrade.com/v1/accounts/{}/savedorders".format(account_id)
+	url = r"https://api.tdameritrade.com/v1/accounts/{}/orders".format(account_id) #orders / savedorders
 	headers = {'Authorization':'Bearer {}'.format(access_token),
 				'Content-Type':'application/json'
 			}
