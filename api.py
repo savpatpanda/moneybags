@@ -55,7 +55,7 @@ def checkPosition(sym):
 	}
 	obj = requests.get(url,data=params, headers=headers).json()['securitiesAccount']
 	if "positions" in obj:
-		obj = obj["positions"]
+		obj = oobj["positions"]
 		for i in range(len(obj)):
 			if(obj[i]["instrument"]["symbol"]==sym):
 				quantity = obj[i]["shortQuantity"] + obj[i]["longQuantity"]

@@ -32,7 +32,7 @@ active_trading = False
 counter_close = 0
 max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 collection = getCollection()
@@ -46,10 +46,10 @@ db = None
 #startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
 #endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
 
-startOfSIMInit = 1587729600000
-endOfSIMInit = 1587772800000
-startOfSIMPeriod = 1587985200000
-endOfSIMPeriod = 1588017600000
+startOfSIMInit = 1584014400000
+endOfSIMInit = 1584057600000
+startOfSIMPeriod = 1584100800000
+endOfSIMPeriod = 1587758400000
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
@@ -182,7 +182,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(int(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
+		buy_matrix[i].append(int(min(round(prop*max_spend*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -215,7 +215,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 	else:
 		if SIM:
 			#balance = balance + old_quant * price
-			unsettled_today = unsettled_today + old_quant*price
+			unsettled_today = twunsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
@@ -254,9 +254,9 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			time.sleep(1)
+			#time.sleep(1)
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -268,8 +268,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			time.sleep(1)
+			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			#time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -331,8 +331,8 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [4], [50,60,70]
-	ps, pswait, pds = [3], [70,80,90], [1,2,3]
+	pb, pbwait = [3,4,5], [50,60]
+	ps, pswait, pds = [3,4], [70,80], [2,3]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
@@ -366,7 +366,6 @@ def optimizeParams():
 		f.close()
 
 if __name__ == "__main__":
-	print(getBalance())
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
