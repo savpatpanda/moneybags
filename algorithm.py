@@ -33,19 +33,19 @@ active_trading = False
 counter_close = 0
 max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4*balance #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 collection = getCollection()
 currentFile = None
 db = None
 
-
 # Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
 startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584014400000, 1585083600000)
+
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
@@ -178,7 +178,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(int(min(round(prop*max_spend*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
+		buy_matrix[i].append(int(min(round(prop*max_spend*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -212,7 +212,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 	else:
 		if SIM:
 			#balance = balance + old_quant * price
-			unsettled_today = unsettled_today + old_quant*price
+			unsettled_today = twunsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
@@ -255,7 +255,6 @@ def update(withPolicy = None):
 			if not SIM:
 				time.sleep(1)
 				sell(sell_matrix[-1][1],sell_matrix[-1][2])
-				
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -335,10 +334,12 @@ def optimizeParams():
 	SIM = True
 	# buy, bwait
 	# sell, swait, dropsell
+
 	#{'buy': 4, 'bwait': 50, 'sell': 3, 'swait': 80, 'dropsell': 3}
 
 	pb, pbwait = [2], [4]
 	ps, pswait, pds = [3], [80], [3]
+
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
@@ -372,7 +373,6 @@ def optimizeParams():
 		f.close()
 
 if __name__ == "__main__":
-	print(getBalance())
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
