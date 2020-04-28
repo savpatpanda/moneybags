@@ -39,10 +39,14 @@ collection = getCollection()
 currentFile = None
 db = None
 
-startOfSIMInit = 1586174400000
-endOfSIMInit = 1586217600000
-startOfSIMPeriod = 1586260800000
-endOfSIMPeriod = 1587758400000
+
+# Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
+def getSIMParams(epochStart, epochEnd):
+	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
+
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1586174400000, 1587758400000)
+
+
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
