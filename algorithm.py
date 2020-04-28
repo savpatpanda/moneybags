@@ -3,6 +3,7 @@ import numpy as np
 from api import buy, sell, get_quotes, getBalance
 import datetime
 import time
+import graphing
 import sys
 import traceback
 import sim
@@ -44,9 +45,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1586174400000, 1587758400000)
-
-
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584014400000, 1585083600000)
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
@@ -192,7 +191,8 @@ def balanceUpdater(endofterm = False):
 				unsettled_yday = unsettled_today
 				unsettled_today = 0
 				counter_close = 0
-				report()
+				tc = report()[1]
+				graphing.app(tc)
 		else:
 			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
@@ -285,7 +285,7 @@ def report():
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
-	return totalChange
+	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
 	# open today's file
@@ -315,7 +315,10 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	if SIM :
 		currentFile.close()
 		balanceUpdater(endofterm = True)
-		return report()
+		ret = report()[0]
+		if ret > -2:
+			graphing.graph(withPolicy)
+		return ret
 
 def getPolicyScore(policy):
 	global db
@@ -333,8 +336,8 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [4], [50,60,70]
-	ps, pswait, pds = [3], [70,80,90], [1,2,3]
+	pb, pbwait = [1,4,10], [20,50,60]
+	ps, pswait, pds = [1,3,9], [30,80,90], [1,3,6]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
