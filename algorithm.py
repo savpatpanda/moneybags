@@ -44,7 +44,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584014400000, 1585083600000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584014400000, 1588021200000)
 
 
 def update_vals(e,new_val):
@@ -83,11 +83,14 @@ def update_vals(e,new_val):
 
 	return db[e]
 
-def buy_sub_decision(symbol,drop):
+def buy_sub_decision(symbol,drop, policy=None):
+	mp = max_proportion
+	if policy:
+		mp = policy["mprop"] if "mprop" in policy else mp
 	existing = db[symbol]["pos"]
 	cost_basis = existing[0]*existing[1]
-	max_buy_dollars = balance*max_proportion - cost_basis
-	if(cost_basis>=balance*max_proportion):		
+	max_buy_dollars = balance*mp - cost_basis
+	if(cost_basis>=balance*mp):		
 		if(drop < -allow_factor*change_min_buy):
 			return max_buy_dollars
 		else:
@@ -113,7 +116,7 @@ def buyDecision(obj,symbol, policy):
 				obj["wait"] = 0
 				return (0,0,0)
 			else:
-				numberShares = float(round((buy_sub_decision(symbol,drop) / vals[-1]),5))
+				numberShares = float(round((buy_sub_decision(symbol,drop, policy) / vals[-1]),5))
 				if(numberShares>0):
 					obj["wait"] = 0
 					hldr = "high : %d, drop %f" % (high, drop)
@@ -168,7 +171,10 @@ def sellDecision(obj,symbol, policy):
 	else:
 		return (0,0,0)
 
-def buyAmounts(buy_matrix):
+def buyAmounts(buy_matrix, policy=None):
+	ms = max_spend
+	if policy:
+		ms = policy["mspend"] if "mspend" in policy else ms
 	sum_drops = 0
 	for i in range(len(buy_matrix)):
 		sum_drops = sum_drops + buy_matrix[i][0]
@@ -178,7 +184,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(int(min(round(prop*max_spend*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
+		buy_matrix[i].append(int(min(round(prop*ms*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -261,7 +267,7 @@ def update(withPolicy = None):
 		balance = getBalance()
 
 	#retrieve buy amounts for each listed stock after sell-offs
-	buy_matrix = buyAmounts(buy_matrix)
+	buy_matrix = buyAmounts(buy_matrix, withPolicy)
 
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
@@ -337,14 +343,14 @@ def optimizeParams():
 
 	#{'buy': 4, 'bwait': 50, 'sell': 3, 'swait': 80, 'dropsell': 3}
 
-	pb, pbwait = [2], [4]
+	pb, pbwait = [4], [50]
 	ps, pswait, pds = [3], [80], [3]
-
+	pms, pmp = [0.2, 0.4, 0.5, 0.6], [0.2,0.4,0.6,0.8]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
 
-	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
+	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
 	topScore = 0
 	minScore = 1e9
@@ -354,9 +360,9 @@ def optimizeParams():
 
 	with open(combinations_store,'w') as f:
 
-		for buy, bwait, sell, swait, dropsell in combinations:
+		for buy, bwait, sell, swait, dropsell, ms, mp in combinations:
 			print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
-			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell}
+			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell, "mspend": ms, "mprop": mp}
 			currentScore = getPolicyScore(m)
 			print(m)
 			print("score output: %s" % currentScore)
