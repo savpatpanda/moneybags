@@ -23,7 +23,6 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=endOfSIMInit,startDate=startOfSIMInit)
 		time.sleep(1)
 		max_length = len(obj)
-		print(symb[i])
 		v = []
 		for j in range(track):
 			v.append(float(obj[max_length-track+j]['close']))
@@ -58,6 +57,9 @@ def dbLoad() -> collections.defaultdict:
 			if key != '_id':
 				m[equity][key] = value
 	return m
+
+def cleanup():
+	cluster.close()
 
 def dbPut(db):
 	for key, value in db.items():
