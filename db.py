@@ -7,7 +7,7 @@ import time
 
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
-collection = db["Savan"]
+collection = db["Ivan"]
 track = 300 #minutes tracking
 frequency = 1
 

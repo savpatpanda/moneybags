@@ -335,9 +335,10 @@ def optimizeParams():
 	SIM = True
 	# buy, bwait
 	# sell, swait, dropsell
-	
-	pb, pbwait = [1,4,10], [20,50,60]
-	ps, pswait, pds = [1,3,9], [30,80,90], [1,3,6]
+	#{'buy': 4, 'bwait': 50, 'sell': 3, 'swait': 80, 'dropsell': 3}
+
+	pb, pbwait = [2], [4]
+	ps, pswait, pds = [3], [80], [3]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
