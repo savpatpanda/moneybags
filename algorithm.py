@@ -22,15 +22,15 @@ unsettled_yday = 0
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 direction_check = 15 #minutes for direction calculator
-change_min_buy = 4 #minimum percentage drop to initiate buy sequence
+change_min_buy = 3 #minimum percentage drop to initiate buy sequence
 change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 3 #percentage drop before dropping investment in stock
 wait_time_buy = 50
-wait_time_sell = 80
+wait_time_sell = 70
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.6 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
 
@@ -40,12 +40,6 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-#i=13
-#startOfSIMInit =int(time.mktime((2020, 4, i, 8, 30, 00, 0, 0, 0))*1000)
-#endOfSIMInit = int(time.mktime((2020, 4, i, 21,00, 00, 0, 0, 0))*1000)
-#startOfSIMPeriod = int(time.mktime((2020, 4,i+1 , 8, 30, 00, 0, 0, 0))*1000)
-#endOfSIMPeriod = int(time.mktime((2020, 4,i+4, 15, 00, 00, 0, 0, 0))*1000)
-
 startOfSIMInit = 1584014400000
 endOfSIMInit = 1584057600000
 startOfSIMPeriod = 1584100800000
@@ -215,7 +209,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 	else:
 		if SIM:
 			#balance = balance + old_quant * price
-			unsettled_today = twunsettled_today + old_quant*price
+			unsettled_today = unsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
 		db[symbol]["pos"] = (0,0)
@@ -254,9 +248,9 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			#time.sleep(1)
+			time.sleep(1)
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -268,8 +262,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			#time.sleep(1)
+			buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -294,8 +288,8 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
-		#if not SIM: time.sleep(60)
-		#else: print("at sim time step: %d" % i)
+		if not SIM: time.sleep(60)
+		else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()
