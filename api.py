@@ -19,6 +19,10 @@ account_id = "454685471" #your account number
 key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
 access_token = getToken(key)
 
+def resetToken():
+	global access_token
+	access_token = getToken(key)
+
 def createParams(instruction, symbol, quantity): #update quantities
 	params = {
 		"orderType": "MARKET",
@@ -43,7 +47,11 @@ def getBalance():
 	headers = {
 		"Authorization":"Bearer {}".format(access_token)
 	}
-	return requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']['cashAvailableForTrading']
+	obj = requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']
+	if 'cashAvailableForTrading' in obj.keys():
+		return obj['cashAvailableForTrading']
+	else:
+		return obj['availableFunds']
 
 def checkPosition(sym): 
 	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
@@ -65,8 +73,6 @@ def checkPosition(sym):
 		return (0,0)
 
 def execAPI(params):
-	global access_token
-	access_token = getToken(key)
 	url = r"https://api.tdameritrade.com/v1/accounts/{}/orders".format(account_id) #orders / savedorders
 	headers = {'Authorization':'Bearer {}'.format(access_token),
 				'Content-Type':'application/json'

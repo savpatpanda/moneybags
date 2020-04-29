@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from api import buy, sell, get_quotes, getBalance
+from api import buy, sell, get_quotes, getBalance, resetToken
 import datetime
 import time
 import sys
@@ -24,9 +24,9 @@ symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA',
 direction_check = 15 #minutes for direction calculator
 change_min_buy = 3 #minimum percentage drop to initiate buy sequence
 change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 3 #percentage drop before dropping investment in stock
-wait_time_buy = 50
-wait_time_sell = 70
+drop_percent = 3#2 #percentage drop before dropping investment in stock
+wait_time_buy = 50# 20
+wait_time_sell = 70#30
 SIM = False
 active_trading = False
 counter_close = 0
@@ -40,10 +40,10 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-startOfSIMInit = 1584014400000
-endOfSIMInit = 1584057600000
-startOfSIMPeriod = 1584100800000
-endOfSIMPeriod = 1587758400000
+startOfSIMInit = 1584100800000
+endOfSIMInit = 1584144000000
+startOfSIMPeriod = 1584360000000
+endOfSIMPeriod = 1588104000000
 
 def update_vals(e,new_val):
 	global active_trading, counter_close
@@ -216,6 +216,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 
 def update(withPolicy = None):
 	global balance
+	token_change = False
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
 	buy_matrix = []
@@ -248,12 +249,16 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
+			resetToken()
+			token_change = True
 			sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
 			time.sleep(1)
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
+		if not token_change:
+			resetToken()
 		balance = getBalance()
 
 	#retrieve buy amounts for each listed stock after sell-offs
@@ -325,8 +330,8 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [3,4,5], [50,60]
-	ps, pswait, pds = [3,4], [70,80], [2,3]
+	pb, pbwait = [3,4,5], [10,20,30,40,50,60]
+	ps, pswait, pds = [3,4], [10,20,30,40,50,60,70,80], [2,3]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
