@@ -14,19 +14,19 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 #fix pinging and token requests
 
 #balance init
-balance = getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-direction_check = 15 #minutes for direction calculator
+#symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
+symb = ['SSL']
 change_min_buy = 3 #minimum percentage drop to initiate buy sequence
 change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 3#2 #percentage drop before dropping investment in stock
-wait_time_buy = 50# 20
-wait_time_sell = 70#30
+drop_percent = 3 #percentage drop before dropping investment in stock
+wait_time_buy = 50
+wait_time_sell = 70
 SIM = False
 active_trading = False
 counter_close = 0
@@ -40,46 +40,45 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-startOfSIMInit = 1584100800000
-endOfSIMInit = 1584144000000
-startOfSIMPeriod = 1584360000000
-endOfSIMPeriod = 1588104000000
+startOfSIMInit = 1584532800000
+endOfSIMInit = 1584748800000
+startOfSIMPeriod = 1584964800000
+endOfSIMPeriod = 1588190400000
 
-def update_vals(e,new_val):
+def update_vals(symbol,new_val):
 	global active_trading, counter_close
-	vals, slopes, infl, wait = db[e]["vals"], db[e]["slopes"], db[e]["infl"], db[e]["wait"]
+	bid, ask, bidSlope, askSlope = db[symbol]["bidPrice"], db[symbol]["askPrice"], db[symbol]["bidSlope"], db[symbol]["askSlope"]
 
-	if SIM and new_val =="Null":
+	if not SIM and new_val is None:
+		currentFile.write("get_quotes returned null for %s\n" % symbol)
+		return new_val
+
+	if SIM and new_val[0] =="Null":
 		return None
-	elif SIM and new_val =="OPEN":
+	elif SIM and new_val[0] =="OPEN":
 		active_trading = True
 		return None
-	elif SIM and new_val =="CLOSE":
+	elif SIM and new_val[0] =="CLOSE":
 		active_trading = False
 		counter_close = counter_close + 1
 		return None
-	elif SIM and new_val == None:
+	elif SIM and new_val[0] == None:
 		return None
-	elif SIM:
-		new_val = float(new_val)
 
-	if not SIM and new_val is None:
-		currentFile.write("get_quotes returned null for %s\n" % e)
-		return new_val
+	bid.append(new_val[0])
+	newBidSlope = (bid[-1] - bid[-2])/bid[-2]*100
+	bidSlope.append(newBidSlope)
 
-	vals.append(new_val)
-	new_slope = (vals[-1] - vals[-2])/vals[-2]*100 #percent change in new minute
-	slopes.append(new_slope)
-	new_infl = (slopes[-1]-slopes[-2]) * 100 #percent change of slopes in new minute
-	new_infl /= slopes[-2] if slopes[-2] != 0 else 0.00001
-	infl.append(new_infl)
-	direct = np.mean(slopes[-direction_check:])
+	ask.append(new_val[1])
+	newAskSlope = (ask[-1] - ask[-2])/ask[-2]*100
+	askSlope.append(newAskSlope)
 
-	vals.pop(0)
-	slopes.pop(0)
-	infl.pop(0)
+	bid.pop(0)
+	ask.pop(0)
+	bidSlope.pop(0)
+	askSlope.pop(0)
 
-	return db[e]
+	return db[symbol]
 
 def buy_sub_decision(symbol,drop):
 	existing = db[symbol]["pos"]
@@ -94,7 +93,7 @@ def buy_sub_decision(symbol,drop):
 		return max_buy_dollars
 
 def buyDecision(obj,symbol, policy):
-	vals, slopes, infl, direct =  obj["vals"], obj["slopes"], obj["infl"], obj["dir"]
+	ask, askSlope, waitB = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"]
 
 	buyThreshold, waitThreshold = change_min_buy, wait_time_buy
 	if policy:
@@ -102,34 +101,34 @@ def buyDecision(obj,symbol, policy):
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
 
-	high = max(vals[:-30]) #maybe incorporate mean - high = max(vals[:-60])
-	drop = (vals[-1] - high) / high*100
+	high = max(ask[:-30]) #maybe incorporate mean - high = max(vals[:-60])
+	drop = (ask[-1] - high) / high*100
 
 	if(drop < -buyThreshold):
-		if(obj["wait"]>=waitThreshold):
-			if(np.mean(slopes[-waitThreshold:])<0):
-				obj["wait"] = 0
+		if(waitB>=waitThreshold):
+			if(np.mean(askSlope[-waitThreshold:])<0):
+				waitB -= 1
 				return (0,0,0)
 			else:
-				numberShares = float(round((buy_sub_decision(symbol,drop) / vals[-1]),5))
+				numberShares = float(round((buy_sub_decision(symbol,drop) / ask[-1]),5))
 				if(numberShares>0):
-					obj["wait"] = 0
+					waitB = 0
 					hldr = "high : %d, drop %f" % (high, drop)
 					currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
-					return(drop,'buy',numberShares,vals[-1])
+						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, ask[-10:], askSlope[-10:]))
+					return(drop,'buy',numberShares,ask[-1])
 				else:
-					obj["wait"] = 0
+					waitB = 0
 					return (0,0,0)
 		else:
 			#print("increasing wait")
-			obj["wait"] += 1
+			waitB += 1
 			return (0,0,0)
 	else:
 		return (0,0,0)
 
 def sellDecision(obj,symbol, policy):
-	vals, slopes, infl, direct, existing =  obj["vals"], obj["slopes"], obj["infl"], obj["dir"], db[symbol]["pos"]
+	bid, bidSlope, waitS, existing, readySell = db[symbol]["bidPrice"], db[symbol]["bidSlope"], db[symbol]["wait_sell"], db[symbol]["pos"], db[symbol]["readySell"]
 	sellThreshold, waitThreshold, dropThreshold = change_min_sell, wait_time_sell, drop_percent
 	if policy:
 		sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
@@ -139,28 +138,37 @@ def sellDecision(obj,symbol, policy):
 	if(existing[1]>0):
 		numberShares = existing[0]
 		avgPrice = existing[1]
-		rise = (vals[-1] - avgPrice) / avgPrice * 100
+		rise = (bid[-1] - avgPrice) / avgPrice * 100
 		if(rise < - dropThreshold):
-			obj["wait"] = 0
+			waitS = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[FORCED SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-				(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
-			return(rise,'sell',numberShares,vals[-1])
+				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
+			return(rise,'sell',numberShares,bid[-1])
 		elif(rise > sellThreshold):
-			if(obj["wait"]>= waitThreshold):
-				if(np.mean(slopes[-waitThreshold:])>0):
-					obj["wait"] = 0
+			readySell = True
+			if(waitS>= waitThreshold):
+				if(np.mean(bidSlope[-waitThreshold:])>0):
+					waitS -= 1
 					return (0,0,0)
 				else:
-					obj["wait"] = 0
+					waitS = 0
 					hldr = "rise %f" % (rise)
 					currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, vals[-10:], slopes[-10:]))
-					return(rise,'sell',numberShares,vals[-1])
+						(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
+					readySell = False
+					return(rise,'sell',numberShares,bid[-1])
 			else:
 				#print("increasing wait")
-				obj["wait"] += 1
+				waitS += 1
 				return (0, 0,0)
+		elif(readySell):
+			waitS = 0
+			hldr = "rise %f" % (rise)
+			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
+				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
+			readySell = False
+			return(rise,'sell',numberShares,bid[-1])
 		else:
 			return (0,0,0)
 	else:
@@ -198,21 +206,20 @@ def balanceUpdater(endofterm = False):
 def updateBalanceAndPosition(symbol,action,quant,price):
 	global balance, unsettled_today, unsettled_yday
 
-	old = db[symbol]["pos"]
-	old_quant = old[0]
-	old_price = old[1]
+	pos = db[symbol]["pos"]
+	old_quant = pos[0]
+	old_price = pos[1]
 	if(action=='buy'):
 		balance = balance - quant*price
 		new_quant = old_quant + quant
 		new_price = (old_quant*old_price+quant*price) / new_quant
-		db[symbol]["pos"] = (new_quant,new_price)
+		pos = (new_quant,new_price)
 	else:
 		if SIM:
-			#balance = balance + old_quant * price
 			unsettled_today = unsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
-		db[symbol]["pos"] = (0,0)
+		pos = (0,0)
 
 def update(withPolicy = None):
 	global balance
@@ -251,9 +258,9 @@ def update(withPolicy = None):
 		if(sell_matrix[-1][2]>0.001):
 			resetToken()
 			token_change = True
-			sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			time.sleep(1)
+			#time.sleep(1)
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -267,8 +274,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			time.sleep(1)
+			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			#time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -276,11 +283,10 @@ def report():
 	deltas = []
 	for i in range(len(symb)):	
 		if db[symb[i]]['pos'][1]!=0:
-			delta = (db[symb[i]]["vals"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
+			delta = (db[symb[i]]["bidPrice"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
 		else:
 			delta = 0
-		#print(symb[i]+": "+str(delta)+"%")
-		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["vals"][-1] #get_quotes(symbol=symb[i])
+		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["bidPrice"][-1] #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
@@ -294,7 +300,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	i = 1
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
-		else: print("at sim time step: %d" % i)
+		#else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()

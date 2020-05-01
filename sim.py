@@ -23,7 +23,12 @@ def loadFile(directory):
 # Returns and shortens the list corresponding to equity
 def get_quotes(equity):
 	if equity in ed and len(ed[equity]) > 1:
-		return ed[equity].pop()
+		new = ed[equity].pop()
+		if new in ['OPEN','Null','CLOSE']:
+			output = (new,new)
+		else:
+			output = (float(new),float(new))
+		return output
 	else:
 		return None
 
