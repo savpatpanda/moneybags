@@ -14,7 +14,7 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 #fix pinging and token requests
 
 #balance init
-balance = 230#getBalance()
+balance = 230.0#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -40,10 +40,10 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-startOfSIMInit = 1584532800000
-endOfSIMInit = 1584748800000
-startOfSIMPeriod = 1584964800000
-endOfSIMPeriod = 1588190400000
+startOfSIMInit = 1588161600000
+endOfSIMInit = 1588204800000
+startOfSIMPeriod = 1588253400000
+endOfSIMPeriod = 1588276800000
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -53,7 +53,9 @@ def update_vals(symbol,new_val):
 		currentFile.write("get_quotes returned null for %s\n" % symbol)
 		return new_val
 
-	if SIM and new_val[0] =="Null":
+	if SIM and new_val == None:
+		return None
+	elif SIM and new_val[0] =="Null":
 		return None
 	elif SIM and new_val[0] =="OPEN":
 		active_trading = True
@@ -61,8 +63,6 @@ def update_vals(symbol,new_val):
 	elif SIM and new_val[0] =="CLOSE":
 		active_trading = False
 		counter_close = counter_close + 1
-		return None
-	elif SIM and new_val[0] == None:
 		return None
 
 	bid.append(new_val[0])
@@ -115,7 +115,7 @@ def buyDecision(obj,symbol, policy):
 					waitB = 0
 					hldr = "high : %d, drop %f" % (high, drop)
 					currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
-						(datetime.datetime.now().strftime("%H %M %S"), symbol, vals[-1], hldr, ask[-10:], askSlope[-10:]))
+						(datetime.datetime.now().strftime("%H %M %S"), symbol, ask[-1], hldr, ask[-10:], askSlope[-10:]))
 					return(drop,'buy',numberShares,ask[-1])
 				else:
 					waitB = 0
