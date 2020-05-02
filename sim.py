@@ -49,7 +49,7 @@ def generateSim(symb,starter,endofweek):
 						f.write("OPEN\n")
 					elif current.hour==4 and current.minute == 0:
 						f.write("CLOSE\n")
-				if(current_index > len(obj)):
+				if(current_index >= len(obj)):
 					break
 				if(current.hour < 7 or current.hour > 20 or current.weekday() > 4):
 					continue
