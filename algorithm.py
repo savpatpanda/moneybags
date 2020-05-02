@@ -276,7 +276,7 @@ def update(withPolicy = None):
 		if(sell_matrix[-1][2]>0.001):
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
 			if not SIM:
-       			resetToken()
+				resetToken()
 				token_change = True
 				time.sleep(1)
 				sell(sell_matrix[-1][1],sell_matrix[-1][2])
