@@ -28,24 +28,13 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			v.append(float(obj[max_length-track+j]['close']))
 
 		s = []
-		inflections = []
-
 		for j in range(len(v)-1):
 			slope = (v[j+1]-v[j])/v[j]*100
 			s.append(slope)
 
-		d = np.mean(s)
-
-		for j in range(len(s)-1):
-			if(s[j]==0):
-				inf = (s[j+1]-s[j])/0.000001*100
-			else:
-				inf = (s[j+1]-s[j])/s[j]*100
-			inflections.append(inf)
-
 		pos = checkPosition(symb[i])
 
-		post = {"_id":symb[i],"vals":v,"slopes":s,"infl":inflections,"dir":d,"wait":0,"wait_sell":0,"pos":pos}
+		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False}
 		collection.insert_one(post)
 
 def dbLoad() -> collections.defaultdict:
