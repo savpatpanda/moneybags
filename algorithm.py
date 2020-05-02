@@ -3,11 +3,12 @@ import numpy as np
 from api import buy, sell, get_quotes, getBalance, resetToken
 import datetime
 import time
+import graphing
 import sys
 import traceback
 import sim
 import itertools
-from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
+from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 
 #things to do:
 #fix initialization to revert to commented out get_price_historyc call
@@ -39,11 +40,11 @@ collection = getCollection()
 currentFile = None
 db = None
 
-#sim date initialization - optional
-startOfSIMInit = 1588161600000
-endOfSIMInit = 1588204800000
-startOfSIMPeriod = 1588253400000
-endOfSIMPeriod = 1588276800000
+# Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
+def getSIMParams(epochStart, epochEnd):
+	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
+
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588161600000, 1588276800000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -80,11 +81,14 @@ def update_vals(symbol,new_val):
 
 	return db[symbol]
 
-def buy_sub_decision(symbol,drop):
+def buy_sub_decision(symbol,drop, policy=None):
+	mp = max_proportion
+	if policy:
+		mp = policy["mprop"] if "mprop" in policy else mp
 	existing = db[symbol]["pos"]
 	cost_basis = existing[0]*existing[1]
-	max_buy_dollars = balance*max_proportion - cost_basis
-	if(cost_basis>=balance*max_proportion):		
+	max_buy_dollars = balance*mp - cost_basis
+	if(cost_basis>=balance*mp):		
 		if(drop < -allow_factor*change_min_buy):
 			return max_buy_dollars
 		else:
@@ -174,7 +178,10 @@ def sellDecision(obj,symbol, policy):
 	else:
 		return (0,0,0)
 
-def buyAmounts(buy_matrix):
+def buyAmounts(buy_matrix, policy=None):
+	ms = max_spend
+	if policy:
+		ms = policy["mspend"] if "mspend" in policy else ms
 	sum_drops = 0
 	for i in range(len(buy_matrix)):
 		sum_drops = sum_drops + buy_matrix[i][0]
@@ -184,7 +191,7 @@ def buyAmounts(buy_matrix):
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
 		prop = buy_matrix[i][0] / sum_drops
-		buy_matrix[i].append(int(min(round(prop*max_spend*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
+		buy_matrix[i].append(int(min(round(prop*ms*balance*totalRelative/buy_matrix[i][3],4),buy_matrix[i][2])))
 	
 	return buy_matrix
 
@@ -197,7 +204,8 @@ def balanceUpdater(endofterm = False):
 				unsettled_yday = unsettled_today
 				unsettled_today = 0
 				counter_close = 0
-				report()
+				tc = report()[1]
+				graphing.app(tc)
 		else:
 			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
@@ -222,7 +230,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		pos = (0,0)
 
 def update(withPolicy = None):
-	global balance
+	global balance, SIM
 	token_change = False
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
@@ -256,11 +264,12 @@ def update(withPolicy = None):
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
-			resetToken()
-			token_change = True
-			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			#time.sleep(1)
+			if not SIM:
+        resetToken()
+			  token_change = True
+				time.sleep(1)
+				sell(sell_matrix[-1][1],sell_matrix[-1][2])
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -269,13 +278,14 @@ def update(withPolicy = None):
 		balance = getBalance()
 
 	#retrieve buy amounts for each listed stock after sell-offs
-	buy_matrix = buyAmounts(buy_matrix)
+	buy_matrix = buyAmounts(buy_matrix, withPolicy)
 
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			#time.sleep(1)
+			if not SIM: 
+				time.sleep(1)
+				buy(buy_matrix[-1][1],buy_matrix[-1][4])
 		buy_matrix.pop()
 
 def report():
@@ -290,7 +300,7 @@ def report():
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
-	return totalChange
+	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
 	# open today's file
@@ -313,12 +323,17 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
+			cleanup()
 			currentFile.close()
 			logEOD()
 			exit(1)
 	if SIM :
+		currentFile.close()
 		balanceUpdater(endofterm = True)
-		return report()
+		ret = report()[0]
+		if ret > -2:
+			graphing.graph(withPolicy)
+		return ret
 
 def getPolicyScore(policy):
 	global db
@@ -335,14 +350,18 @@ def optimizeParams():
 	SIM = True
 	# buy, bwait
 	# sell, swait, dropsell
-	
-	pb, pbwait = [3,4,5], [10,20,30,40,50,60]
-	ps, pswait, pds = [3,4], [10,20,30,40,50,60,70,80], [2,3]
+
+	#{'buy': 4, 'bwait': 50, 'sell': 3, 'swait': 80, 'dropsell': 3}
+
+	pb, pbwait = [4], [50]
+	ps, pswait, pds = [3], [80], [3]
+	pms, pmp = [0.2, 0.4, 0.5, 0.6], [0.2,0.4,0.6,0.8]
+
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
 
-	combinations = itertools.product(pb, pbwait, ps, pswait, pds)
+	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
 	topScore = 0
 	minScore = 1e9
@@ -352,9 +371,9 @@ def optimizeParams():
 
 	with open(combinations_store,'w') as f:
 
-		for buy, bwait, sell, swait, dropsell in combinations:
+		for buy, bwait, sell, swait, dropsell, ms, mp in combinations:
 			print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
-			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell}
+			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell, "mspend": ms, "mprop": mp}
 			currentScore = getPolicyScore(m)
 			print(m)
 			print("score output: %s" % currentScore)
@@ -376,13 +395,13 @@ if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		SIM = True
 		initializeDB(symb, startOfSIMInit, endOfSIMInit, SIM)
+		time.sleep(1)
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
-			loop(maxTimeStep = sim.initializeSim())
+			getPolicyScore({"buy": 4, "sell":3, "bwait": 50, "swait":80, "dropsell": 3})
+			# loop(maxTimeStep = sim.initializeSim())
 		elif sys.argv[1] == 'opt':
-			#firstStrat = {"buy": 3, "bwait": 7, "sell":1, "swait":7, "dropsell":0.8}
-			#newStrat = {"buy": 2.5, "bwait": 5, "sell": 1, "swait": 6, "dropsell":0.8}
 			optimizeParams()
 	else:
 		initializeDB(symb)
