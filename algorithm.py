@@ -14,19 +14,19 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD
 #fix pinging and token requests
 
 #balance init
-balance = 230.0#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-#symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-symb = ['SSL']
+symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 change_min_buy = 3 #minimum percentage drop to initiate buy sequence
 change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 3 #percentage drop before dropping investment in stock
 wait_time_buy = 50
 wait_time_sell = 70
+set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
@@ -40,9 +40,9 @@ currentFile = None
 db = None
 
 #sim date initialization - optional
-startOfSIMInit = 1588161600000
-endOfSIMInit = 1588204800000
-startOfSIMPeriod = 1588253400000
+startOfSIMInit = 1587988800000
+endOfSIMInit = 1588032000000
+startOfSIMPeriod = 1588075200000
 endOfSIMPeriod = 1588276800000
 
 def update_vals(symbol,new_val):
@@ -100,29 +100,28 @@ def buyDecision(obj,symbol, policy):
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
-
-	high = max(ask[:-30]) #maybe incorporate mean - high = max(vals[:-60])
+	high = max(ask[:-30])
 	drop = (ask[-1] - high) / high*100
 
 	if(drop < -buyThreshold):
 		if(waitB>=waitThreshold):
 			if(np.mean(askSlope[-waitThreshold:])<0):
-				waitB -= 1
+				db[symbol]["wait_buy"] -= set_back
 				return (0,0,0)
 			else:
 				numberShares = float(round((buy_sub_decision(symbol,drop) / ask[-1]),5))
 				if(numberShares>0):
-					waitB = 0
+					db[symbol]["wait_buy"] = 0
 					hldr = "high : %d, drop %f" % (high, drop)
 					currentFile.write("[BUY ALERT] : \nCurrent Time: %s\nEquity: %s\nBuy Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 						(datetime.datetime.now().strftime("%H %M %S"), symbol, ask[-1], hldr, ask[-10:], askSlope[-10:]))
 					return(drop,'buy',numberShares,ask[-1])
 				else:
-					waitB = 0
+					db[symbol]["wait_buy"] = 0
 					return (0,0,0)
 		else:
 			#print("increasing wait")
-			waitB += 1
+			db[symbol]["wait_buy"] += 1
 			return (0,0,0)
 	else:
 		return (0,0,0)
@@ -140,30 +139,30 @@ def sellDecision(obj,symbol, policy):
 		avgPrice = existing[1]
 		rise = (bid[-1] - avgPrice) / avgPrice * 100
 		if(rise < - dropThreshold):
-			waitS = 0
+			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[FORCED SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
 			return(rise,'sell',numberShares,bid[-1])
 		elif(rise > sellThreshold):
-			readySell = True
+			db[symbol]["readySell"] = True
 			if(waitS>= waitThreshold):
 				if(np.mean(bidSlope[-waitThreshold:])>0):
-					waitS -= 1
+					db[symbol]["wait_sell"] -= set_back
 					return (0,0,0)
 				else:
-					waitS = 0
+					db[symbol]["wait_sell"] = 0
 					hldr = "rise %f" % (rise)
 					currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 						(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
-					readySell = False
+					db[symbol]["readySell"] = False
 					return(rise,'sell',numberShares,bid[-1])
 			else:
 				#print("increasing wait")
-				waitS += 1
+				db[symbol]["wait_sell"] += 1
 				return (0, 0,0)
 		elif(readySell):
-			waitS = 0
+			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
@@ -213,13 +212,24 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		balance = balance - quant*price
 		new_quant = old_quant + quant
 		new_price = (old_quant*old_price+quant*price) / new_quant
-		pos = (new_quant,new_price)
+		db[symbol]["pos"] = (new_quant,new_price)
 	else:
 		if SIM:
 			unsettled_today = unsettled_today + old_quant*price
 		else:
 			balance = balance + old_quant*price
-		pos = (0,0)
+		db[symbol]["pos"] = (0,0)
+
+def updatePreMarket():
+	stringOfStocks = ','.join(symb)
+	quotes = []
+	quotes = get_quotes(symbol=stringOfStocks)
+
+	for e in range(len(symb)):
+		obj = update_vals(symb[e],quotes[e])
+
+		if obj is None:
+			continue
 
 def update(withPolicy = None):
 	global balance
@@ -258,9 +268,9 @@ def update(withPolicy = None):
 		if(sell_matrix[-1][2]>0.001):
 			resetToken()
 			token_change = True
-			#sell(sell_matrix[-1][1],sell_matrix[-1][2])
+			sell(sell_matrix[-1][1],sell_matrix[-1][2])
 			updateBalanceAndPosition(sell_matrix[-1][1],'sell',0,sell_matrix[-1][3])
-			#time.sleep(1)
+			time.sleep(1)
 		sell_matrix.pop()
 
 	if not SIM and len(buy_matrix)>0:
@@ -274,8 +284,8 @@ def update(withPolicy = None):
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			#buy(buy_matrix[-1][1],buy_matrix[-1][4])
-			#time.sleep(1)
+			buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			time.sleep(1)
 		buy_matrix.pop()
 
 def report():
@@ -300,7 +310,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	i = 1
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
-		#else: print("at sim time step: %d" % i)
+		else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()
@@ -308,8 +318,18 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
 			i += 1
-			if i % 30 == 0 and not SIM:
-				currentFile.write("[15 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+			if i % 20 == 0 and not SIM:
+				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+				dbPut(db)
+		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
+			try:
+				updatePreMarket()
+			except Exception as e:
+				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
+			i += 1
+			if i % 20 == 0:
+				resetToken()
+				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dbPut(db)
@@ -336,8 +356,8 @@ def optimizeParams():
 	# buy, bwait
 	# sell, swait, dropsell
 	
-	pb, pbwait = [3,4,5], [10,20,30,40,50,60]
-	ps, pswait, pds = [3,4], [10,20,30,40,50,60,70,80], [2,3]
+	pb, pbwait = [1,2,3], [10,20,30]
+	ps, pswait, pds = [2,3], [30,40,50], [2,3]
 
 	#pb, pbwait = [1.5, 2, 2.5, 3], [1,3,5,7]
 	#ps, pswait, pds = [0.5, 0.75, 1], [4,6,8], [0.5,1,1.5]
