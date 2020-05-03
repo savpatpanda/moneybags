@@ -101,7 +101,7 @@ def get_quotes(**kwargs):
 	requested_stocks = kwargs.get('symbol').split(',')
 	quotes = []
 	for i in range(len(requested_stocks)):
-		quotes.append((float(obj[requested_stocks[i]]['bidPrice']),float(obj[requested_stocks[i]]['askPrice']))) if requested_stocks[i] in obj else quotes.append(None)
+		quotes.append((float(obj[requested_stocks[i]]['bidPrice']),float(obj[requested_stocks[i]]['askPrice']),int(obj[requested_stocks[i]]['volume']))) if requested_stocks[i] in obj else quotes.append(None)
 	return quotes
 
 def get_price_history(**kwargs):

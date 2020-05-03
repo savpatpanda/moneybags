@@ -15,17 +15,19 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #balance init
-balance = getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
+#symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
+symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 change_min_buy = 3 #minimum percentage drop to initiate buy sequence
 change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 3 #percentage drop before dropping investment in stock
 wait_time_buy = 50
+wait_time_volumes = 20
 wait_time_sell = 70
 set_back = 0
 SIM = False
@@ -44,11 +46,12 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588161600000, 1588276800000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1585742400000, 1588363200000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
 	bid, ask, bidSlope, askSlope = db[symbol]["bidPrice"], db[symbol]["askPrice"], db[symbol]["bidSlope"], db[symbol]["askSlope"]
+	volume, moving, volumeSlope = db[symbol]["volume"], db[symbol]["moving"], db[symbol]["volumeSlope"]
 
 	if not SIM and new_val is None:
 		currentFile.write("get_quotes returned null for %s\n" % symbol)
@@ -74,10 +77,18 @@ def update_vals(symbol,new_val):
 	newAskSlope = (ask[-1] - ask[-2])/ask[-2]*100
 	askSlope.append(newAskSlope)
 
+	volume.append(new_val[2])
+	moving.append(np.mean(volume[-5:]))
+	newVolSlope = (moving[-1] - moving[-2])/moving[-2]*100
+	volumeSlope.append(newVolSlope)
+
 	bid.pop(0)
 	ask.pop(0)
 	bidSlope.pop(0)
 	askSlope.pop(0)
+	volume.pop(0)
+	moving.pop(0)
+	volumeSlope.pop(0)
 
 	return db[symbol]
 
@@ -97,7 +108,7 @@ def buy_sub_decision(symbol,drop, policy=None):
 		return max_buy_dollars
 
 def buyDecision(obj,symbol, policy):
-	ask, askSlope, waitB = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"]
+	ask, askSlope, waitB, vol = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"], db[symbol]["moving"]
 
 	buyThreshold, waitThreshold = change_min_buy, wait_time_buy
 	if policy:
@@ -106,10 +117,11 @@ def buyDecision(obj,symbol, policy):
 
 	high = max(ask[:-30])
 	drop = (ask[-1] - high) / high*100
+	halfmax = max(vol) * 0.5
 
-	if(drop < -buyThreshold):
+	if(drop < -buyThreshold and vol[-1]>halfmax): #
 		if(waitB>=waitThreshold):
-			if(np.mean(askSlope[-waitThreshold:])<0):
+			if(np.mean(askSlope[-waitThreshold:])<0): 
 				db[symbol]["wait_buy"] -= set_back
 				return (0,0,0)
 			else:
@@ -309,18 +321,19 @@ def report():
 		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["bidPrice"][-1] #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
 	# open today's file
 	global currentFile
 	global SIM
+	global active_trading
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
-		if not SIM: time.sleep(60)
-		else: print("at sim time step: %d" % i)
+		#if not SIM: time.sleep(60)
+		#else: print("at sim time step: %d" % i)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()
@@ -414,8 +427,7 @@ if __name__ == "__main__":
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
-			getPolicyScore({"buy": 4, "sell":3, "bwait": 50, "swait":80, "dropsell": 3})
-			# loop(maxTimeStep = sim.initializeSim())
+			loop(maxTimeStep = sim.initializeSim())
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:

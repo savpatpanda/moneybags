@@ -25,9 +25,10 @@ def get_quotes(equity):
 	if equity in ed and len(ed[equity]) > 1:
 		new = ed[equity].pop()
 		if new in ['OPEN','Null','CLOSE']:
-			output = (new,new)
+			output = (new,new,new)
 		else:
-			output = (float(new),float(new))
+			separate = new.split(',')
+			output = (float(separate[0]),float(separate[0]),int(separate[1]))
 		return output
 	else:
 		return None
@@ -57,8 +58,8 @@ def generateSim(symb,starter,endofweek):
 					f.write("Null\n")
 					continue
 				else:
-					f.write(str(obj[current_index]['close']))
-					f.write('\n')
+					output = str(obj[current_index]['close']) + ','+str(obj[current_index]['volume']) + '\n'
+					f.write(output)
 					current_index = current_index + 1
 
 # Initializes global ed object, returns maximum time steps needed.
