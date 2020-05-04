@@ -314,7 +314,7 @@ def report():
 	total_value = balance
 	deltas = []
 	for e in symb:	
-		lastBid = db[e]["bidPrice][-1]
+		lastBid = db[e]["bidPrice"][-1]
 		secondPos = db[e]['pos'][1]
 		firstPos = db[e]['pos'][0]
 		if secondPos !=0:
