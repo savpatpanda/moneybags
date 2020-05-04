@@ -14,12 +14,6 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
-#balance init
-balance = 230#getBalance()
-initialBalance = balance
-unsettled_today = 0
-unsettled_yday = 0
-
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 #symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
 symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
@@ -36,6 +30,13 @@ counter_close = 0
 max_proportion = 0.8#0.6 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.6#0.4 #maximum amount of balance to spend in given trading minute in dollars
+max_spend_rolling = max_spend
+
+#balance init
+balance = 230#getBalance()
+initialBalance = balance
+unsettled_today = 0
+unsettled_yday = 0
 
 #accessing database
 collection = getCollection()
@@ -252,7 +253,7 @@ def updatePreMarket():
 			continue
 
 def update(withPolicy = None):
-	global balance, SIM
+	global balance, SIM, max_spend
 	token_change = False
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
@@ -302,6 +303,9 @@ def update(withPolicy = None):
 	#retrieve buy amounts for each listed stock after sell-offs
 	buy_matrix = buyAmounts(buy_matrix, withPolicy)
 
+	if len(buy_matrix)>0:
+		max_spend_rolling -= 0.1
+
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
@@ -329,6 +333,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	global currentFile
 	global SIM
 	global active_trading
+	global max_spend_rolling
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
@@ -359,6 +364,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			cleanup()
 			currentFile.close()
 			logEOD()
+			max_spend_rolling = max_spend
 			exit(1)
 	if SIM :
 		currentFile.close()
