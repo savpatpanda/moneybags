@@ -340,8 +340,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
-		#if not SIM: time.sleep(60)
-		#else: print("at sim time step: %d" % i)
+		if not SIM: time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()

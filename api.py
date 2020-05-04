@@ -60,9 +60,9 @@ def checkPosition(sym):
 	headers = {
 		"Authorization":"Bearer {}".format(access_token)
 	}
-	obj = requests.get(url,data=params, headers=headers).json()['securitiesAccount']
-	if "positions" in obj:
-		obj = oobj["positions"]
+	obj = requests.get(url,params=params, headers=headers).json()['securitiesAccount']
+	if 'positions' in obj:
+		obj = obj['positions']
 		for i in range(len(obj)):
 			if(obj[i]["instrument"]["symbol"]==sym):
 				quantity = obj[i]["shortQuantity"] + obj[i]["longQuantity"]
@@ -117,3 +117,5 @@ def get_price_history(**kwargs):
 
 	obj = requests.get(url, params=params).json()['candles']
 	return obj
+
+print(checkPosition('BXC'))
