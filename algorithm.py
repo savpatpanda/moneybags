@@ -253,7 +253,7 @@ def updatePreMarket():
 			continue
 
 def update(withPolicy = None):
-	global balance, SIM, max_spend
+	global balance, SIM, max_spend_rolling
 	token_change = False
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
