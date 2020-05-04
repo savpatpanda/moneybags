@@ -313,12 +313,15 @@ def update(withPolicy = None):
 def report():
 	total_value = balance
 	deltas = []
-	for i in range(len(symb)):	
-		if db[symb[i]]['pos'][1]!=0:
-			delta = (db[symb[i]]["bidPrice"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
+	for e in symb:	
+		lastBid = db[e]["bidPrice][-1]
+		secondPos = db[e]['pos'][1]
+		firstPos = db[e]['pos'][0]
+		if secondPos !=0:
+			delta = (lastBid - secondPos) / secondPos *100
 		else:
 			delta = 0
-		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["bidPrice"][-1] #get_quotes(symbol=symb[i])
+		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
@@ -427,7 +430,8 @@ if __name__ == "__main__":
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
-			loop(maxTimeStep = sim.initializeSim())
+			# loop(maxTimeStep = sim.initializeSim())
+			getPolicyScore({"buy": 3, "sell": 3, "dropsell": 3, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
