@@ -24,7 +24,7 @@ unsettled_yday = 0
 #symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
 symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 change_min_buy = 4 #minimum percentage drop to initiate buy sequence
-change_min_sell = 0.75 #minimum percentage increase from buy point to initiate sell sequence
+change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 1 #percentage drop before dropping investment in stock
 wait_time_buy = 10
 wait_time_volumes = 20
@@ -33,9 +33,9 @@ set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.5 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.4 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.3 #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 collection = getCollection()
@@ -389,7 +389,7 @@ def optimizeParams():
 
 	pb, pbwait = [3,4], [10,20]
 	ps, pswait, pds = [0.75,1], [10,20], [1,2]
-	pms, pmp = [0.4,0.5], [0.4,0.5,0.6]
+	pms, pmp = [0.2,0.3], [0.4,0.5,0.6]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
