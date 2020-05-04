@@ -24,18 +24,18 @@ unsettled_yday = 0
 #symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
 symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
 change_min_buy = 3 #minimum percentage drop to initiate buy sequence
-change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 3 #percentage drop before dropping investment in stock
-wait_time_buy = 50
+change_min_sell = 4#3 #minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 2#3 #percentage drop before dropping investment in stock
+wait_time_buy = 40#50
 wait_time_volumes = 20
-wait_time_sell = 70
+wait_time_sell = 80#70
 set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.6 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.8#0.6 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.6#0.4 #maximum amount of balance to spend in given trading minute in dollars
 
 #accessing database
 collection = getCollection()
@@ -81,14 +81,14 @@ def update_vals(symbol,new_val):
 	moving.append(np.mean(volume[-5:]))
 	newVolSlope = (moving[-1] - moving[-2])/moving[-2]*100
 	volumeSlope.append(newVolSlope)
-
+	
 	bid.pop(0)
 	ask.pop(0)
 	bidSlope.pop(0)
 	askSlope.pop(0)
 	volume.pop(0)
 	moving.pop(0)
-	volumeSlope.pop(0)
+	volumeSlope.pop(0)		
 
 	return db[symbol]
 
@@ -321,7 +321,7 @@ def report():
 		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["bidPrice"][-1] #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
