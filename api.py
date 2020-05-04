@@ -116,5 +116,4 @@ def get_price_history(**kwargs):
 		params.update(parameter)
 
 	obj = requests.get(url, params=params).json()['candles']
-	time.sleep(2)
 	return obj
