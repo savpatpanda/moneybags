@@ -14,28 +14,29 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
-#balance init
-balance = 230#getBalance()
-initialBalance = balance
-unsettled_today = 0
-unsettled_yday = 0
-
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 #symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
 symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-change_min_buy = 3 #minimum percentage drop to initiate buy sequence
-change_min_sell = 3 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 3 #percentage drop before dropping investment in stock
-wait_time_buy = 50
+change_min_buy = 6 #minimum percentage drop to initiate buy sequence
+change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 2 #percentage drop before dropping investment in stock
+wait_time_buy = 5
 wait_time_volumes = 20
-wait_time_sell = 70
+wait_time_sell = 5
 set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.6 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4 #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
+max_spend_rolling = max_spend
+
+#balance init
+balance = getBalance()
+initialBalance = balance
+unsettled_today = 0
+unsettled_yday = 0
 
 #accessing database
 collection = getCollection()
@@ -46,7 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1585742400000, 1588363200000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584532800000, 1584993600000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -79,16 +80,19 @@ def update_vals(symbol,new_val):
 
 	volume.append(new_val[2])
 	moving.append(np.mean(volume[-5:]))
-	newVolSlope = (moving[-1] - moving[-2])/moving[-2]*100
+	if moving[-2] ==0:
+		newVolSlope = (moving[-1] - moving[-2])/0.000001*100
+	else:
+		newVolSlope = (moving[-1] - moving[-2])/moving[-2]*100
 	volumeSlope.append(newVolSlope)
-
+	
 	bid.pop(0)
 	ask.pop(0)
 	bidSlope.pop(0)
 	askSlope.pop(0)
 	volume.pop(0)
 	moving.pop(0)
-	volumeSlope.pop(0)
+	volumeSlope.pop(0)		
 
 	return db[symbol]
 
@@ -216,7 +220,7 @@ def balanceUpdater(endofterm = False):
 				unsettled_today = 0
 				counter_close = 0
 				tc = report()[1]
-				graphing.app(tc)
+				#graphing.app(tc)
 		else:
 			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
@@ -252,7 +256,7 @@ def updatePreMarket():
 			continue
 
 def update(withPolicy = None):
-	global balance, SIM
+	global balance, SIM, max_spend_rolling
 	token_change = False
 	# run regularly on minute-by-minute interval
 	sell_matrix = []
@@ -302,6 +306,9 @@ def update(withPolicy = None):
 	#retrieve buy amounts for each listed stock after sell-offs
 	buy_matrix = buyAmounts(buy_matrix, withPolicy)
 
+	if len(buy_matrix)>0:
+		max_spend_rolling -= 0.1
+
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
 			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
@@ -324,7 +331,7 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
@@ -332,6 +339,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	global currentFile
 	global SIM
 	global active_trading
+	global max_spend_rolling
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
@@ -362,21 +370,25 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			cleanup()
 			currentFile.close()
 			logEOD()
+			max_spend_rolling = max_spend
 			exit(1)
 	if SIM :
 		currentFile.close()
 		balanceUpdater(endofterm = True)
 		ret = report()[0]
-		if ret > -2:
-			graphing.graph(withPolicy)
+		#if ret > -2:
+		#graphing.graph(withPolicy)
 		return ret
 
 def getPolicyScore(policy):
 	global db
-	global balance, counter_close, active_trading
+	global balance, counter_close, active_trading, unsettled_today, unsettled_yday, max_spend_rolling
 	db = dbLoad()
 	balance = initialBalance
+	unsettled_yday = 0
+	unsettled_today = 0
 	counter_close = 0
+	max_spend_rolling = policy['mspend']
 	active_trading = False
 	print("EVALUATING: %s" % policy)
 	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
@@ -388,9 +400,9 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [4], [50]
-	ps, pswait, pds = [3], [80], [3]
-	pms, pmp = [0.2, 0.4, 0.5, 0.6], [0.2,0.4,0.6,0.8]
+	pb, pbwait = [4,5,6], [4,5]
+	ps, pswait, pds = [1], [4,5], [2]
+	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
