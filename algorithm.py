@@ -370,9 +370,11 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 
 def getPolicyScore(policy):
 	global db
-	global balance, counter_close, active_trading
+	global balance, counter_close, active_trading, unsettled_today, unsettled_yday
 	db = dbLoad()
 	balance = initialBalance
+	unsettled_yday = 0
+	unsettled_today = 0
 	counter_close = 0
 	active_trading = False
 	print("EVALUATING: %s" % policy)
