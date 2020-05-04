@@ -216,7 +216,7 @@ def balanceUpdater(endofterm = False):
 				unsettled_today = 0
 				counter_close = 0
 				tc = report()[1]
-				graphing.app(tc)
+				#graphing.app(tc)
 		else:
 			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
@@ -364,8 +364,8 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 		currentFile.close()
 		balanceUpdater(endofterm = True)
 		ret = report()[0]
-		if ret > -2:
-			graphing.graph(withPolicy)
+		#if ret > -2:
+		#graphing.graph(withPolicy)
 		return ret
 
 def getPolicyScore(policy):
@@ -385,8 +385,8 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [4], [50]
-	ps, pswait, pds = [3], [80], [3]
+	pb, pbwait = [3,4], [40,50,60]
+	ps, pswait, pds = [2,3,4], [70,80], [2,3]
 	pms, pmp = [0.2, 0.4, 0.5, 0.6], [0.2,0.4,0.6,0.8]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
