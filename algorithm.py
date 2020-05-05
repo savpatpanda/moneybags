@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 122#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -47,9 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 129600000, epochStart + 129600000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1588248000000, 1588377600000, 1588593600000, 1588622400000
-
-#getSIMParams(1588334400000, 1588622400000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588334400000, 1588622400000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -398,8 +396,8 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [4,5,6], [4,5]
-	ps, pswait, pds = [1], [4,5], [2]
+	pb, pbwait = [5,6,7], [5,20]
+	ps, pswait, pds = [3,4,5], [5,20], [2]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
