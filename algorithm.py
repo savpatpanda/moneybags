@@ -26,6 +26,7 @@ wait_time_sell = 5
 set_back = 0
 SIM = False
 active_trading = False
+initialized = False
 counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
@@ -45,9 +46,9 @@ db = None
 
 # Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
 def getSIMParams(epochStart, epochEnd):
-	return (epochStart, epochStart + 129600000, epochStart + 129600000, epochEnd)
+	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588334400000, 1588622400000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1585742400000, 1588636800000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -337,6 +338,8 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	global SIM
 	global active_trading
 	global max_spend_rolling
+	global initialized
+	global db
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
@@ -351,7 +354,12 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			if i % 20 == 0 and not SIM:
 				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
+		elif datetime.time(6, 59) <= datetime.datetime.now().time() < datetime.time(9,30):
+			if not initialized:
+				initializeDB(symb)
+				db = dbLoad()
+				initialized = True
+
 			try:
 				updatePreMarket()
 			except Exception as e:
@@ -367,6 +375,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			currentFile.close()
 			logEOD()
 			max_spend_rolling = max_spend
+			initialized = False
 			exit(1)
 	if SIM :
 		currentFile.close()
@@ -396,8 +405,8 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [5,6,7], [5,20]
-	ps, pswait, pds = [3,4,5], [5,20], [2]
+	pb, pbwait = [3,4,5], [5,20,50]
+	ps, pswait, pds = [3,4,5], [5], [2]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -442,6 +451,4 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
-		initializeDB(symb)
-		db = dbLoad()
 		loop()
