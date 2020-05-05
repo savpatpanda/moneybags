@@ -117,5 +117,3 @@ def get_price_history(**kwargs):
 
 	obj = requests.get(url, params=params).json()['candles']
 	return obj
-
-print(checkPosition('BXC'))

@@ -27,9 +27,18 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 		max_length = len(obj)
 		v = []
 		vol = []
-		for j in range(track):
-			v.append(float(obj[max_length-track+j]['close']))
-			vol.append(int(obj[max_length-track+j]['volume']))
+
+		if track>max_length:
+			track_sub = max_length
+			for j in range(track_sub):
+				v.append(float(obj[max_length-track_sub+j]['close']))
+				vol.append(int(obj[max_length-track_sub+j]['volume']))
+		else:
+			for j in range(track):
+				v.append(float(obj[max_length-track+j]['close']))
+				vol.append(int(obj[max_length-track+j]['volume']))
+
+
 
 		moving = []
 		for j in range(track-actionHold):
