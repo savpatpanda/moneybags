@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = getBalance()
+balance = 122#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -45,9 +45,11 @@ db = None
 
 # Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
 def getSIMParams(epochStart, epochEnd):
-	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
+	return (epochStart, epochStart + 129600000, epochStart + 129600000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1584532800000, 1584993600000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1588248000000, 1588377600000, 1588593600000, 1588622400000
+
+#getSIMParams(1588334400000, 1588622400000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -343,8 +345,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
-		#if not SIM: time.sleep(60)
-		#else: print("at sim time step: %d" % i)
+		if not SIM: time.sleep(60)
 		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
 			try:
 				balanceUpdater()
