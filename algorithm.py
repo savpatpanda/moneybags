@@ -26,7 +26,6 @@ wait_time_sell = 5
 set_back = 0
 SIM = False
 active_trading = False
-initialized = False
 counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
@@ -355,11 +354,6 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
 		elif datetime.time(6, 59) <= datetime.datetime.now().time() < datetime.time(9,30):
-			if not initialized:
-				initializeDB(symb)
-				db = dbLoad()
-				initialized = True
-
 			try:
 				updatePreMarket()
 			except Exception as e:
@@ -375,7 +369,6 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			currentFile.close()
 			logEOD()
 			max_spend_rolling = max_spend
-			initialized = False
 			exit(1)
 	if SIM :
 		currentFile.close()
@@ -451,4 +444,6 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
+		initializeDB(symb)
+		db = dbLoad()
 		loop()
