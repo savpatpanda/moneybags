@@ -14,14 +14,8 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
-#user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR',
-'CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC',
-'CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC',
-'GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM',
-'HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV',
-'IBN','IFS','IGA','IHD','TBI','TCI','TDI','TEAF','TFC','THC','UE','UFI','USFD']
+#user-input 
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TCI','TDI','TEAF','TFC','THC','UE','UFI','USFD']
 change_min_buy = 5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 4 #percentage drop before dropping investment in stock
