@@ -38,10 +38,8 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 				v.append(float(obj[max_length-track+j]['close']))
 				vol.append(int(obj[max_length-track+j]['volume']))
 
-
-
 		moving = []
-		for j in range(track-actionHold):
+		for j in range(len(vol)-actionHold):
 			moving.append(np.mean(vol[j:j+actionHold]))
 
 		s = []
@@ -54,7 +52,10 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			slope = (moving[j+1]-moving[j])/moving[j]*100
 			volS.append(slope)
 
-		pos = checkPosition(symb[i])
+		if SIM:
+			pos = (0,0)
+		else:
+			pos = checkPosition(symb[i])
 
 		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False}
 		collection.insert_one(post)

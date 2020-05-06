@@ -16,24 +16,24 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
 #symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
-symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-change_min_buy = 6 #minimum percentage drop to initiate buy sequence
-change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
+change_min_buy = 3 #minimum percentage drop to initiate buy sequence
+change_min_sell = 4#minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 2 #percentage drop before dropping investment in stock
-wait_time_buy = 5
+wait_time_buy = 50
 wait_time_volumes = 20
-wait_time_sell = 5
+wait_time_sell = 70
 set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.6#0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.4#0.2 #maximum amount of balance to spend in given trading minute in dollars
 max_spend_rolling = max_spend
 
 #balance init
-balance = getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -47,7 +47,9 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1585742400000, 1588636800000)
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
+
+##getSIMParams(1588593600000, 1588708800000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -119,11 +121,12 @@ def buyDecision(obj,symbol, policy):
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
-	high = max(ask[:-30])
+	high = max(ask)#max(ask[-180:-20])
 	drop = (ask[-1] - high) / high*100
 	halfmax = max(vol) * 0.5
 
 	if(drop < -buyThreshold and vol[-1]>halfmax): #
+		print(waitB)
 		if(waitB>=waitThreshold):
 			if(np.mean(askSlope[-waitThreshold:])<0): 
 				db[symbol]["wait_buy"] -= set_back
@@ -399,7 +402,7 @@ def optimizeParams():
 	# maxspend, maxproportion
 
 	pb, pbwait = [3,4,5], [5,20,50]
-	ps, pswait, pds = [3,4,5], [5], [2]
+	ps, pswait, pds = [3,4,5], [5,20,50], [1,2]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
