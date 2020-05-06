@@ -15,25 +15,30 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-#symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-change_min_buy = 3 #minimum percentage drop to initiate buy sequence
-change_min_sell = 4#minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 2 #percentage drop before dropping investment in stock
-wait_time_buy = 50
+symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR',
+'CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC',
+'CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC',
+'GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM',
+'HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV',
+'IBN','IFS','IGA','IHD','TBI','TCI','TDI','TEAF','TFC','THC','UE','UFI','USFD']
+change_min_buy = 5 #minimum percentage drop to initiate buy sequence
+change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 4 #percentage drop before dropping investment in stock
+wait_time_buy = 20
 wait_time_volumes = 20
-wait_time_sell = 70
+wait_time_sell = 20
 set_back = 0
 SIM = False
 active_trading = False
 counter_close = 0
-max_proportion = 0.6#0.3 #maximum proportion a given equity can occupy in brokerage account
+max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-max_spend = 0.4#0.2 #maximum amount of balance to spend in given trading minute in dollars
+max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
 max_spend_rolling = max_spend
 
 #balance init
-balance = 230#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -121,12 +126,11 @@ def buyDecision(obj,symbol, policy):
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
-	high = max(ask)#max(ask[-180:-20])
+	high = max(ask[:-30])#max(ask[-180:-20])
 	drop = (ask[-1] - high) / high*100
 	halfmax = max(vol) * 0.5
 
 	if(drop < -buyThreshold and vol[-1]>halfmax): #
-		print(waitB)
 		if(waitB>=waitThreshold):
 			if(np.mean(askSlope[-waitThreshold:])<0): 
 				db[symbol]["wait_buy"] -= set_back
@@ -289,7 +293,7 @@ def update(withPolicy = None):
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
-	buy_matrix = buy_matrix[0:1]
+	buy_matrix = buy_matrix[0:2]
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
@@ -401,9 +405,9 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5], [5,20,50]
-	ps, pswait, pds = [3,4,5], [5,20,50], [1,2]
-	pms, pmp = [0.2], [0.3]
+	pb, pbwait = [5], [20]
+	ps, pswait, pds = [5], [20], [4]
+	pms, pmp = [0.15], [0.25]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None

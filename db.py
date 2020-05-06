@@ -23,7 +23,7 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=2)
 		else:
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=endOfSIMInit,startDate=startOfSIMInit)
-		time.sleep(2)
+		time.sleep(1)
 		max_length = len(obj)
 		v = []
 		vol = []
