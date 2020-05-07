@@ -15,10 +15,11 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TCI','TDI','TEAF','TFC','THC','UE','UFI','USFD']
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
 change_min_buy = 5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 4 #percentage drop before dropping investment in stock
+ready_percent = change_min_sell / 2
 wait_time_buy = 20
 wait_time_volumes = 20
 wait_time_sell = 20
@@ -32,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = getBalance()
+balance = 124#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -46,7 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1588590000000, 1588723200000, 1588768200000,1588795200000
 
 ##getSIMParams(1588593600000, 1588708800000)
 
@@ -159,6 +160,9 @@ def sellDecision(obj,symbol, policy):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (bid[-1] - avgPrice) / avgPrice * 100
+		if(rise > ready_percent):
+			db[symbol]["readySell"] = True
+
 		if(rise < - dropThreshold):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
@@ -166,7 +170,6 @@ def sellDecision(obj,symbol, policy):
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
 			return(rise,'sell',numberShares,bid[-1])
 		elif(rise > sellThreshold):
-			db[symbol]["readySell"] = True
 			if(waitS>= waitThreshold):
 				if(np.mean(bidSlope[-waitThreshold:])>0):
 					db[symbol]["wait_sell"] -= set_back
@@ -182,12 +185,12 @@ def sellDecision(obj,symbol, policy):
 				#print("increasing wait")
 				db[symbol]["wait_sell"] += 1
 				return (0, 0,0)
-		elif(readySell):
+		elif(readySell and rise < ready_percent):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
-			readySell = False
+			db[symbol]["readySell"] = False
 			return(rise,'sell',numberShares,bid[-1])
 		else:
 			return (0,0,0)
