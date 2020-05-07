@@ -341,8 +341,6 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	global SIM
 	global active_trading
 	global max_spend_rolling
-	global initialized
-	global db
 	currentFile = open(datetime.datetime.now().strftime("%m-%d-%Y.log"), "w")
 	i = 1
 	while(0 < i < maxTimeStep):
@@ -448,6 +446,8 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
+		while datetime.datetime.now().time() <= datetime.time(6, 30):
+			time.sleep(60)
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
