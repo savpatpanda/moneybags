@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 124#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -357,7 +357,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			if i % 20 == 0 and not SIM:
 				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
-		elif datetime.time(6, 59) <= datetime.datetime.now().time() < datetime.time(9,30):
+		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
 			try:
 				updatePreMarket()
 			except Exception as e:
