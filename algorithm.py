@@ -322,16 +322,16 @@ def update(withPolicy = None):
 		buy_matrix.pop()
 
 def dump():
-	for e, d in db.items():
-		positions = d['pos'] 
-		if len(positions) > 1:
-			lastBid = d['bidPrice'][-1]
-			delta = (lastBid - positions[-1]) / lastBid
-			if not (-0.1 <= delta <= 0.1) :
-				# sell for big movers
-				# sell(e, ###)
+	resetToken()
+	for sym in symb:
+		position = db[sym]['pos'] 
+		if position[0] > 0:
+			lastBid = db[sym]['bidPrice'][-1]
+			delta = (lastBid - position[1]) / lastBid
+			if not (-1 <= delta <= 1) :
+				time.sleep(1)
+				sell(sym,position[0])
 		
-
 def report():
 	total_value = balance
 	deltas = []
@@ -457,8 +457,8 @@ if __name__ == "__main__":
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
-			# loop(maxTimeStep = sim.initializeSim())
-			getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
+			loop(maxTimeStep = sim.initializeSim())
+			#getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
