@@ -77,7 +77,7 @@ def dbPut(db):
 
 def logEOD(): 
 	cluster.close()
-	with open('DATABASE_LOG_END_OF_DAY.txt','w') as f:
+	with open('DATABASE_LOG_END_OF_DAY.log','w') as f:
 		items = collection.find({})
 		for element in items:
 			f.write(str(element))

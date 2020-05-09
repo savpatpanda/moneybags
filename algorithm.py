@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 122#getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -47,8 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 129600000, epochStart + 129600000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1588248000000, 1588377600000, 1588593600000, 1588622400000
-
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
 #getSIMParams(1588334400000, 1588622400000)
 
 def update_vals(symbol,new_val):
@@ -319,6 +318,17 @@ def update(withPolicy = None):
 				buy(buy_matrix[-1][1],buy_matrix[-1][4])
 		buy_matrix.pop()
 
+def dump():
+	for e, d in db.items():
+		positions = d['pos'] 
+		if len(positions) > 1:
+			lastBid = d['bidPrice'][-1]
+			delta = (lastBid - positions[-1]) / lastBid
+			if not (-0.1 <= delta <= 0.1) :
+				# sell for big movers
+				# sell(e, ###)
+		
+
 def report():
 	total_value = balance
 	deltas = []
@@ -367,6 +377,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
+			dump()
 			dbPut(db)
 			cleanup()
 			currentFile.close()
@@ -444,7 +455,7 @@ if __name__ == "__main__":
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
 			# loop(maxTimeStep = sim.initializeSim())
-			getPolicyScore({"buy": 3, "sell": 3, "dropsell": 3, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
+			getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:

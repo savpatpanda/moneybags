@@ -115,5 +115,11 @@ def get_price_history(**kwargs):
 		parameter = {arg: kwargs.get(arg)}
 		params.update(parameter)
 
-	obj = requests.get(url, params=params).json()['candles']
-	return obj
+	obj = requests.get(url, params=params).json()
+	if 'candles' in obj:
+		return obj['candles']
+	else:
+		time.sleep(1)
+		resetToken()
+		return get_price_history(kwargs)
+	
