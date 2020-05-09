@@ -49,8 +49,10 @@ def getBalance():
 	obj = requests.get(url,headers=headers).json()['securitiesAccount']['currentBalances']
 	if 'cashAvailableForTrading' in obj.keys():
 		return obj['cashAvailableForTrading']
-	else:
+	elif 'availableFunds' in obj.keys():
 		return obj['availableFunds']
+	else:
+		return 0
 
 def checkPosition(sym): 
 	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
@@ -60,7 +62,11 @@ def checkPosition(sym):
 	headers = {
 		"Authorization":"Bearer {}".format(access_token)
 	}
-	obj = requests.get(url,params=params, headers=headers).json()['securitiesAccount']
+	obj = requests.get(url,params=params, headers=headers).json()
+	while 'securitiesAccount' not in obj.keys():
+		time.sleep(5)
+		datetime.datetime.now().time() <= datetime.time(16,00)
+	obj = obj['securitiesAccount']
 	if 'positions' in obj:
 		obj = obj['positions']
 		for i in range(len(obj)):
