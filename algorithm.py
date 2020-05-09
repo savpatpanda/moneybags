@@ -14,15 +14,15 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix initialization to revert to commented out get_price_historyc call
 #fix pinging and token requests
 
-#user-input - 'SSL','VG''WTI',,'SFNC','NGHC'
-#symb = ['SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC'] 
-symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC']
-change_min_buy = 6 #minimum percentage drop to initiate buy sequence
-change_min_sell = 1 #minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 2 #percentage drop before dropping investment in stock
-wait_time_buy = 5
+#user-input 
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
+change_min_buy = 5 #minimum percentage drop to initiate buy sequence
+change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
+drop_percent = 4 #percentage drop before dropping investment in stock
+ready_percent = change_min_sell / 2
+wait_time_buy = 20
 wait_time_volumes = 20
-wait_time_sell = 5
+wait_time_sell = 20
 set_back = 0
 SIM = False
 active_trading = False
@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 230#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -45,10 +45,11 @@ db = None
 
 # Returns params where init is epochStart, startOfSIMPeriod is epochStart + 1 day, and the endOfSIMPeriod occurs at epochEnd.
 def getSIMParams(epochStart, epochEnd):
-	return (epochStart, epochStart + 129600000, epochStart + 129600000, epochEnd)
+	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
 startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
 #getSIMParams(1588334400000, 1588622400000)
+
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -120,7 +121,7 @@ def buyDecision(obj,symbol, policy):
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
-	high = max(ask[:-30])
+	high = max(ask[:-30])#max(ask[-180:-20])
 	drop = (ask[-1] - high) / high*100
 	halfmax = max(vol) * 0.5
 
@@ -159,6 +160,9 @@ def sellDecision(obj,symbol, policy):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (bid[-1] - avgPrice) / avgPrice * 100
+		if(rise > ready_percent):
+			db[symbol]["readySell"] = True
+
 		if(rise < - dropThreshold):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
@@ -166,7 +170,6 @@ def sellDecision(obj,symbol, policy):
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
 			return(rise,'sell',numberShares,bid[-1])
 		elif(rise > sellThreshold):
-			db[symbol]["readySell"] = True
 			if(waitS>= waitThreshold):
 				if(np.mean(bidSlope[-waitThreshold:])>0):
 					db[symbol]["wait_sell"] -= set_back
@@ -182,12 +185,12 @@ def sellDecision(obj,symbol, policy):
 				#print("increasing wait")
 				db[symbol]["wait_sell"] += 1
 				return (0, 0,0)
-		elif(readySell):
+		elif(readySell and rise < ready_percent):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
 				(datetime.datetime.now().strftime("%H %M %S"), symbol, bid[-1], hldr, bid[-10:], bidSlope[-10:]))
-			readySell = False
+			db[symbol]["readySell"] = False
 			return(rise,'sell',numberShares,bid[-1])
 		else:
 			return (0,0,0)
@@ -287,7 +290,7 @@ def update(withPolicy = None):
 
 	sell_matrix = sorted(sell_matrix)
 	buy_matrix = sorted(buy_matrix)
-	buy_matrix = buy_matrix[0:1]
+	buy_matrix = buy_matrix[0:2]
 
 	while len(sell_matrix)>0:
 		if(sell_matrix[-1][2]>0.001):
@@ -412,9 +415,9 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [4,5,6], [4,5]
-	ps, pswait, pds = [1], [4,5], [2]
-	pms, pmp = [0.2], [0.3]
+	pb, pbwait = [5], [20]
+	ps, pswait, pds = [5], [20], [4]
+	pms, pmp = [0.15], [0.25]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
@@ -459,6 +462,8 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
+		while datetime.datetime.now().time() <= datetime.time(6, 30):
+			time.sleep(60)
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
