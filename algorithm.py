@@ -47,9 +47,9 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1588590000000, 1588723200000, 1588768200000,1588795200000
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
+#getSIMParams(1588334400000, 1588622400000)
 
-##getSIMParams(1588593600000, 1588708800000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -321,15 +321,29 @@ def update(withPolicy = None):
 				buy(buy_matrix[-1][1],buy_matrix[-1][4])
 		buy_matrix.pop()
 
+def dump():
+	for e, d in db.items():
+		positions = d['pos'] 
+		if len(positions) > 1:
+			lastBid = d['bidPrice'][-1]
+			delta = (lastBid - positions[-1]) / lastBid
+			if not (-0.1 <= delta <= 0.1) :
+				# sell for big movers
+				# sell(e, ###)
+		
+
 def report():
 	total_value = balance
 	deltas = []
-	for i in range(len(symb)):	
-		if db[symb[i]]['pos'][1]!=0:
-			delta = (db[symb[i]]["bidPrice"][-1]-db[symb[i]]['pos'][1]) / db[symb[i]]['pos'][1] *100
+	for e in symb:	
+		lastBid = db[e]["bidPrice"][-1]
+		secondPos = db[e]['pos'][1]
+		firstPos = db[e]['pos'][0]
+		if secondPos !=0:
+			delta = (lastBid - secondPos) / secondPos *100
 		else:
 			delta = 0
-		total_value = total_value + db[symb[i]]['pos'][0]* db[symb[i]]["bidPrice"][-1] #get_quotes(symbol=symb[i])
+		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
 	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
@@ -366,6 +380,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
+			dump()
 			dbPut(db)
 			cleanup()
 			currentFile.close()
@@ -442,7 +457,8 @@ if __name__ == "__main__":
 		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
 		db = dbLoad()
 		if sys.argv[1] == 'sim':
-			loop(maxTimeStep = sim.initializeSim())
+			# loop(maxTimeStep = sim.initializeSim())
+			getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:

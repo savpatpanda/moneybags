@@ -23,7 +23,6 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=2)
 		else:
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=endOfSIMInit,startDate=startOfSIMInit)
-		time.sleep(1)
 		max_length = len(obj)
 		v = []
 		vol = []
@@ -79,7 +78,7 @@ def dbPut(db):
 
 def logEOD(): 
 	cluster.close()
-	with open('DATABASE_LOG_END_OF_DAY.txt','w') as f:
+	with open('DATABASE_LOG_END_OF_DAY.log','w') as f:
 		items = collection.find({})
 		for element in items:
 			f.write(str(element))
