@@ -446,7 +446,7 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'opt':
 			optimizeParams()
 	else:
-		while datetime.datetime.now().time() <= datetime.time(6, 30):
+		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)
 		initializeDB(symb)
 		db = dbLoad()
