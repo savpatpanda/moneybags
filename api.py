@@ -128,4 +128,3 @@ def get_price_history(**kwargs):
 		time.sleep(1)
 		resetToken()
 		return get_price_history(kwargs)
-	

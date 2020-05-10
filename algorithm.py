@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -47,9 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585738800000, 1585911600000, 1585911600000,1588708800000
-#getSIMParams(1588334400000, 1588622400000)
-
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585656000000, 1585785600000, 1585825200000,1588982400000
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -346,7 +344,7 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
@@ -415,8 +413,8 @@ def optimizeParams():
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [5], [20]
-	ps, pswait, pds = [5], [20], [4]
+	pb, pbwait = [3,4,5], [5,10,20]
+	ps, pswait, pds = [3,4,5], [5,10,20], [1,2,3]
 	pms, pmp = [0.15], [0.25]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
