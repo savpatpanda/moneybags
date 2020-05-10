@@ -221,8 +221,9 @@ def balanceUpdater(endofterm = False):
 				unsettled_yday = unsettled_today
 				unsettled_today = 0
 				counter_close = 0
-				tc = report()[1]
-				#graphing.app(tc)
+				# tc = report()[1]
+				# graphing.app(tc)
+				dump()
 		else:
 			balance = balance + unsettled_today + unsettled_yday
 			unsettled_today = 0
@@ -327,14 +328,16 @@ def dump():
 			lastBid = db[sym]['bidPrice'][-1]
 			delta = (lastBid - position[1]) / lastBid
 			if not (-1 <= delta <= 1) :
-				time.sleep(1)
-				sell(sym,position[0])
+				if not SIM: 
+					time.sleep(1)
+					sell(sym,position[0])
+				updateBalanceAndPosition(sym, 'sell', position[0], lastBid)
 		
 def report():
 	total_value = balance
 	deltas = []
 	for e in symb:	
-		lastBid = db[e]["bidPrice"][-1]
+		lastBid = db[e]["bidPrice"][-1] # Error Check this <--, got null sometimes
 		secondPos = db[e]['pos'][1]
 		firstPos = db[e]['pos'][0]
 		if secondPos !=0:
@@ -406,7 +409,7 @@ def getPolicyScore(policy):
 	print("EVALUATING: %s" % policy)
 	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
 
-def optimizeParams():
+def optimizeParams() -> map:
 	global SIM
 	SIM = True
 	# buy, bwait
@@ -444,21 +447,52 @@ def optimizeParams():
 		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
+		return topPolicy
+
+def optimizeEquity(symbol) -> map:
+	global symb
+	symb = [symbol]
+	return optimizeParams()
+
+# time in epoch
+def refreshPolicies():
+	global SIM
+	cp = symb.copy()
+	SIM = True
+	with open('refreshedPolicies.log', 'w') as f:
+		for sym in cp:
+			res = optimizeEquity(sym)
+			f.write("%s: %s\n" % (sym, res))
+			# db.savePolicy(sym, res) TODOOOO
+		f.close()
+
+def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = startOfSIMPeriod):
+	global SIM
+	SIM = True
+	initializeDB(symb, initStart, initEnd, SIM)
+	time.sleep(1)
+	sim.generateSim(symb, timeStart, timeEnd)
+	db = dbLoad()
 
 if __name__ == "__main__":
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
-		SIM = True
-		initializeDB(symb, startOfSIMInit, endOfSIMInit, SIM)
-		time.sleep(1)
-		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
-		db = dbLoad()
 		if sys.argv[1] == 'sim':
+			prepareSim()
 			loop(maxTimeStep = sim.initializeSim())
 			#getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
+			prepareSim()
 			optimizeParams()
+		elif sys.argv[1] == 'ref':
+			midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min)
+			timeBegin = midnight - datetime.timedelta(hours = 14)
+			timeEnd = midnight - datetime.timedelta(hours = 7)
+			epochStart = (time.mktime(timeBegin.timetuple()) + timeBegin.microsecond * 1e-6) * 1000
+			epochEnd = (time.mktime(timeEnd.timetuple()) + timeEnd.microsecond * 1e-6) * 1000
+			prepareSim(timeStart = epochStart, timeEnd = epochEnd)
+			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)
