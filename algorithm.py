@@ -33,7 +33,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 230#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -347,7 +347,7 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
