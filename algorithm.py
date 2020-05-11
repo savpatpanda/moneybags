@@ -47,7 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585656000000, 1585785600000, 1585825200000,1588982400000
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588593600000,1588971600000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -383,6 +383,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dump()
 			dbPut(db)
+			# refreshPolicies()
 			cleanup()
 			currentFile.close()
 			logEOD()
@@ -422,8 +423,8 @@ def optimizeParams() -> map:
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
-	topScore = 0
-	minScore = 1e9
+	topScore = -1e9 # needs floor
+	minScore = 1e9 # needs ceiling
 	minPolicy = None
 
 	combinations_store = 'combinations_store.log'
@@ -466,9 +467,10 @@ def refreshPolicies():
 			# db.savePolicy(sym, res) TODOOOO
 		f.close()
 
-def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = startOfSIMPeriod):
-	global SIM
+def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
+	global SIM, db
 	SIM = True
+	print("Preparing with init: %d-%d, sim: %d-%d" % (initStart, initEnd, timeStart, timeEnd))
 	initializeDB(symb, initStart, initEnd, SIM)
 	time.sleep(1)
 	sim.generateSim(symb, timeStart, timeEnd)
@@ -481,17 +483,14 @@ if __name__ == "__main__":
 		if sys.argv[1] == 'sim':
 			prepareSim()
 			loop(maxTimeStep = sim.initializeSim())
-			#getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
-			midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min)
-			timeBegin = midnight - datetime.timedelta(hours = 14)
-			timeEnd = midnight - datetime.timedelta(hours = 7)
-			epochStart = (time.mktime(timeBegin.timetuple()) + timeBegin.microsecond * 1e-6) * 1000
-			epochEnd = (time.mktime(timeEnd.timetuple()) + timeEnd.microsecond * 1e-6) * 1000
-			prepareSim(timeStart = epochStart, timeEnd = epochEnd)
+			midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
+			timeBegin, timeEnd = midnight - datetime.timedelta(hours = 16), midnight - datetime.timedelta(hours = 7)
+			epochStart, epochEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 
+			prepareSim(timeStart = int(epochStart), timeEnd = int(epochEnd))
 			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
