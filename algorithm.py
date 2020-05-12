@@ -307,7 +307,7 @@ def update(withPolicy = None):
 			continue
 		defPolicy = withPolicy
 		# check if optimal policy exists, otherwise use default
-		if not SIM and ("policy" in db[symb[e]] and db[symb[e]] is not None):
+		if not SIM and ("policy" in db[symb[e]] and db[symb[e]]["policy"] is not None):
 			defPolicy = db[symb[e]]["policy"]
 
 		if active_trading or not SIM:
@@ -522,13 +522,12 @@ if __name__ == "__main__":
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
-			times = dateDetermine()
-			prepareSim(timeStart = times[0], timeEnd = times[1],initStart=times[2], initEnd=times[3])
+			start, end, initStart, initEnd = dateDetermine()
+			prepareSim(timeStart = start, timeEnd = end, initStart = initStart, initEnd= initEnd)
 			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)
-		#train()
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
