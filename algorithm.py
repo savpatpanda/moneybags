@@ -15,7 +15,8 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
+symb = ['BXC','ACBI','ACIU']
+#symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
 change_min_buy = 5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
 drop_percent = 2 #percentage drop before dropping investment in stock
@@ -47,7 +48,22 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588593600000,1588971600000)
+def dateDetermine():
+	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
+	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
+	initBegin, initEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
+	if timeBegin.weekday() == 6:
+		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=48), timeEnd - datetime.timedelta(hours=48), initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+	elif timeBegin.weekday() == 5:
+		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=24), timeEnd - datetime.timedelta(hours=24), initBegin - datetime.timedelta(hours=24), initEnd - datetime.timedelta(hours=24)
+	elif timeBegin.weekday() == 0:
+		initBegin, initEnd = initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+
+	timeBegin, timeEnd, initBegin, initEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 , time.mktime(initBegin.timetuple()) * 1e3 ,time.mktime(initEnd.timetuple()) * 1e3 
+	return (int(timeBegin),int(timeEnd),int(initBegin),int(initEnd))
+
+timesForSIM = dateDetermine()
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = timesForSIM[2],timesForSIM[3],timesForSIM[0],timesForSIM[1]
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -347,7 +363,7 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
@@ -457,7 +473,7 @@ def optimizeEquity(symbol) -> map:
 
 # time in epoch
 def refreshPolicies():
-	global SIM
+	global SIM, symb
 	cp = symb.copy()
 	SIM = True
 	with open('refreshedPolicies.log', 'w') as f:
@@ -466,6 +482,7 @@ def refreshPolicies():
 			f.write("%s: %s\n" % (sym, res))
 			# db.savePolicy(sym, res) TODOOOO
 		f.close()
+	symb = cp
 
 def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
 	global SIM, db
@@ -476,17 +493,15 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	sim.generateSim(symb, timeStart, timeEnd)
 	db = dbLoad()
 
-	return topPolicy
-
-def train():
-	indexes = symb.copy()
-	global symb
-	for i in range(len(indexes)):
-		symb = indexes[i]
-		policy = optimizeParams()
-		db[symb]["buyPer"], db[symb]["sellPer"],db[symb]["buyWait"],db[symb]["sellWait"],db[symb]["dropSell"] = policy["buy"],policy["sell"],policy["bwait"],policy["swait"],policy["dropsell"]
-	symp = indexes
-	dbPut(db)
+#def train():
+#	indexes = symb.copy()
+#	global symb
+#	for i in range(len(indexes)):
+#		symb = indexes[i]
+#		policy = optimizeParams()
+#		db[symb]["buyPer"], db[symb]["sellPer"],db[symb]["buyWait"],db[symb]["sellWait"],db[symb]["dropSell"] = policy["buy"],policy["sell"],policy["bwait"],policy["swait"],policy["dropsell"]
+#	symp = indexes
+#	dbPut(db)
 
 if __name__ == "__main__":
 	collection.delete_many({})
@@ -499,10 +514,8 @@ if __name__ == "__main__":
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
-			midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
-			timeBegin, timeEnd = midnight - datetime.timedelta(hours = 16), midnight - datetime.timedelta(hours = 7)
-			epochStart, epochEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 
-			prepareSim(timeStart = int(epochStart), timeEnd = int(epochEnd))
+			times = dateDetermine()
+			prepareSim(timeStart = times[0], timeEnd = times[1],initStart=times[2], initEnd=times[3])
 			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
