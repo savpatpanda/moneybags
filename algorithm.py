@@ -34,7 +34,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = getBalance()
+balance = 230#getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -433,9 +433,9 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5], [5,10,20]
-	ps, pswait, pds = [3,4,5], [5,10,20], [1,2,3]
-	pms, pmp = [0.15], [0.25]
+	pb, pbwait = [1,2,3,4,5], [5,10,20,50]
+	ps, pswait, pds = [1,2,3,4,5], [5,10,20,50], [1,2,3]
+	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
