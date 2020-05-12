@@ -448,6 +448,18 @@ def optimizeParams():
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
 
+	return topPolicy
+
+def train():
+	indexes = symb.copy()
+	global symb
+	for i in range(len(indexes)):
+		symb = indexes[i]
+		policy = optimizeParams()
+		db[symb]["buyPer"], db[symb]["sellPer"],db[symb]["buyWait"],db[symb]["sellWait"],db[symb]["dropSell"] = policy["buy"],policy["sell"],policy["bwait"],policy["swait"],policy["dropsell"]
+	symp = indexes
+	dbPut(db)
+
 if __name__ == "__main__":
 	collection.delete_many({})
 	print("moneybags v1")
@@ -465,6 +477,7 @@ if __name__ == "__main__":
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)
+		#train()
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
