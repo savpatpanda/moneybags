@@ -1,4 +1,7 @@
+from dotenv import load_dotenv
+load_dotenv()
 import math
+import os
 import numpy as np
 from api import buy, sell, get_quotes, getBalance, resetToken
 import datetime
@@ -216,6 +219,10 @@ def sellDecision(obj,symbol, policy):
 		return (0,0,0)
 
 def buyAmounts(buy_matrix, policy=None):
+	# do the same check for symb
+	# symb = buy_matrix[1]
+	# if "policy" in db[symb] and db[symb]["policy"] is not None:
+	# 	policy = db[symb]["policy"] # this probably won't be relevant, mspend and mprop will have to be uniform.
 	ms = max_spend
 	if policy:
 		ms = policy["mspend"] if "mspend" in policy else ms
@@ -298,10 +305,14 @@ def update(withPolicy = None):
 
 		if obj is None:
 			continue
+		defPolicy = withPolicy
+		# check if optimal policy exists, otherwise use default
+		if not SIM and ("policy" in db[symb[e]] and db[symb[e]] is not None):
+			defPolicy = db[symb[e]]["policy"]
 
 		if active_trading or not SIM:
-			buyDec = buyDecision(obj,symb[e], withPolicy)
-			sellDec = sellDecision(obj,symb[e], withPolicy)
+			buyDec = buyDecision(obj,symb[e], defPolicy)
+			sellDec = sellDecision(obj,symb[e], defPolicy)
 			if(sellDec[1] == 'sell'):
 				sell_matrix.append([sellDec[0],symb[e],sellDec[2],sellDec[3]])
 			if(buyDec[1] == 'buy'):
@@ -500,6 +511,7 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	db = dbLoad()
 
 if __name__ == "__main__":
+	load_dotenv()
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:

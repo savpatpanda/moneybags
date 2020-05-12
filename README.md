@@ -8,6 +8,12 @@ source ./env/bin/activate
 pip3 install requirements.txt
 mkdir sim
 mkdir images
+touch .env
+```
+#### .env
+Specify your database cluster.
+```
+DB_NAME="###"
 ```
 ## simulate & optimize
 ```

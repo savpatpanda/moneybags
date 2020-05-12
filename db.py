@@ -1,3 +1,4 @@
+import os
 import pymongo
 import collections
 import numpy as np
@@ -7,7 +8,8 @@ import time
 
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
-collection = db["Savan"]
+print("DATABASE: %s" % os.getenv("DB_NAME"))
+collection = db[os.getenv("DB_NAME")]
 track = 300 #minutes tracking
 frequency = 1
 actionHold = 15
