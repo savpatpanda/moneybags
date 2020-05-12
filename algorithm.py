@@ -47,7 +47,7 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = 1585656000000, 1585785600000, 1585825200000,1588982400000
+startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = getSIMParams(1588593600000,1588971600000)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -221,8 +221,8 @@ def balanceUpdater(endofterm = False):
 				unsettled_yday = unsettled_today
 				unsettled_today = 0
 				counter_close = 0
-				#tc = report()[1]
-				#graphing.app(tc)
+				# tc = report()[1]
+				# graphing.app(tc)
 				dump()
 		else:
 			balance = balance + unsettled_today + unsettled_yday
@@ -328,7 +328,7 @@ def dump():
 			lastBid = db[sym]['bidPrice'][-1]
 			delta = (lastBid - position[1]) / lastBid
 			if not (-1 <= delta <= 1) :
-				if not SIM:
+				if not SIM: 
 					time.sleep(1)
 					sell(sym,position[0])
 				updateBalanceAndPosition(sym, 'sell', position[0], lastBid)
@@ -337,7 +337,7 @@ def report():
 	total_value = balance
 	deltas = []
 	for e in symb:	
-		lastBid = db[e]["bidPrice"][-1]
+		lastBid = db[e]["bidPrice"][-1] # Error Check this <--, got null sometimes
 		secondPos = db[e]['pos'][1]
 		firstPos = db[e]['pos'][0]
 		if secondPos !=0:
@@ -383,6 +383,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dump()
 			dbPut(db)
+			# refreshPolicies()
 			cleanup()
 			currentFile.close()
 			logEOD()
@@ -409,7 +410,7 @@ def getPolicyScore(policy):
 	print("EVALUATING: %s" % policy)
 	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
 
-def optimizeParams():
+def optimizeParams() -> map:
 	global SIM
 	SIM = True
 	# buy, bwait
@@ -422,8 +423,8 @@ def optimizeParams():
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
-	topScore = 0
-	minScore = 1e9
+	topScore = -1e9 # needs floor
+	minScore = 1e9 # needs ceiling
 	minPolicy = None
 
 	combinations_store = 'combinations_store.log'
@@ -447,6 +448,33 @@ def optimizeParams():
 		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
+		return topPolicy
+
+def optimizeEquity(symbol) -> map:
+	global symb
+	symb = [symbol]
+	return optimizeParams()
+
+# time in epoch
+def refreshPolicies():
+	global SIM
+	cp = symb.copy()
+	SIM = True
+	with open('refreshedPolicies.log', 'w') as f:
+		for sym in cp:
+			res = optimizeEquity(sym)
+			f.write("%s: %s\n" % (sym, res))
+			# db.savePolicy(sym, res) TODOOOO
+		f.close()
+
+def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
+	global SIM, db
+	SIM = True
+	print("Preparing with init: %d-%d, sim: %d-%d" % (initStart, initEnd, timeStart, timeEnd))
+	initializeDB(symb, initStart, initEnd, SIM)
+	time.sleep(1)
+	sim.generateSim(symb, timeStart, timeEnd)
+	db = dbLoad()
 
 	return topPolicy
 
@@ -464,16 +492,18 @@ if __name__ == "__main__":
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
-		SIM = True
-		initializeDB(symb, startOfSIMInit, endOfSIMInit, SIM)
-		time.sleep(1)
-		sim.generateSim(symb,startOfSIMPeriod,endOfSIMPeriod)
-		db = dbLoad()
 		if sys.argv[1] == 'sim':
+			prepareSim()
 			loop(maxTimeStep = sim.initializeSim())
-			#getPolicyScore({"buy": 3, "sell": 4, "dropsell": 2, "bwait": 50, "swait": 70, "mspend":0.4, "mprop":0.6})
 		elif sys.argv[1] == 'opt':
+			prepareSim()
 			optimizeParams()
+		elif sys.argv[1] == 'ref':
+			midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
+			timeBegin, timeEnd = midnight - datetime.timedelta(hours = 16), midnight - datetime.timedelta(hours = 7)
+			epochStart, epochEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 
+			prepareSim(timeStart = int(epochStart), timeEnd = int(epochEnd))
+			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)

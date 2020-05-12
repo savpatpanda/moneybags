@@ -125,6 +125,7 @@ def get_price_history(**kwargs):
 	if 'candles' in obj:
 		return obj['candles']
 	else:
+		print("FAILED TO GET CANDLES, RETRYING...")
 		time.sleep(1)
 		resetToken()
-		return get_price_history(kwargs)
+		return get_price_history(**kwargs)
