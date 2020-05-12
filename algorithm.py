@@ -52,18 +52,22 @@ def dateDetermine():
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
 	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
 	initBegin, initEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
+	bdelta, bamt = [timeBegin, timeEnd, initBegin, initEnd], None
 	if timeBegin.weekday() == 6:
-		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=48), timeEnd - datetime.timedelta(hours=48), initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+		bamt = [48] * 4
 	elif timeBegin.weekday() == 5:
-		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=24), timeEnd - datetime.timedelta(hours=24), initBegin - datetime.timedelta(hours=24), initEnd - datetime.timedelta(hours=24)
+		bamt = [24] * 4
 	elif timeBegin.weekday() == 0:
-		initBegin, initEnd = initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+		bamt = [0] * 2 + [48] * 2
+	if bamt:
+		for i, v in enumerate(zip(bdelta, bamt)):
+			back = v[1]
+			cur = v[0]
+			cur -= datetime.timedelta(hours=back)
+			bdelta[i] = int(time.mktime(cur.timetuple()) * 1e3)
+	return bdelta 
 
-	timeBegin, timeEnd, initBegin, initEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 , time.mktime(initBegin.timetuple()) * 1e3 ,time.mktime(initEnd.timetuple()) * 1e3 
-	return (int(timeBegin),int(timeEnd),int(initBegin),int(initEnd))
-
-timesForSIM = dateDetermine()
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = timesForSIM[2],timesForSIM[3],timesForSIM[0],timesForSIM[1]
+startOfSIMPeriod, endOfSIMPeriod, startOfSIMInit, endOfSIMInit = dateDetermine() 
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -476,12 +480,14 @@ def refreshPolicies():
 	global SIM, symb
 	cp = symb.copy()
 	SIM = True
+	m = {}
 	with open('refreshedPolicies.log', 'w') as f:
 		for sym in cp:
 			res = optimizeEquity(sym)
 			f.write("%s: %s\n" % (sym, res))
-			# db.savePolicy(sym, res) TODOOOO
+			m[sym] = { "policy": res }
 		f.close()
+	dbPut(m) # not sure this will override existing data in the db
 	symb = cp
 
 def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
@@ -492,16 +498,6 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	time.sleep(1)
 	sim.generateSim(symb, timeStart, timeEnd)
 	db = dbLoad()
-
-#def train():
-#	indexes = symb.copy()
-#	global symb
-#	for i in range(len(indexes)):
-#		symb = indexes[i]
-#		policy = optimizeParams()
-#		db[symb]["buyPer"], db[symb]["sellPer"],db[symb]["buyWait"],db[symb]["sellWait"],db[symb]["dropSell"] = policy["buy"],policy["sell"],policy["bwait"],policy["swait"],policy["dropsell"]
-#	symp = indexes
-#	dbPut(db)
 
 if __name__ == "__main__":
 	collection.delete_many({})
