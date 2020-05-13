@@ -1,3 +1,4 @@
+import os
 import pymongo
 import collections
 import numpy as np
@@ -7,7 +8,8 @@ import time
 
 cluster = MongoClient("mongodb+srv://savanpatel1232:Winter35@cluster0-tprlj.mongodb.net/test?retryWrites=true&w=majority")
 db = cluster["test"]
-collection = db["Savan"]
+print("DATABASE: %s" % os.getenv("DB_NAME"))
+collection = db[os.getenv("DB_NAME")]
 track = 300 #minutes tracking
 frequency = 1
 actionHold = 15
@@ -57,7 +59,8 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 		else:
 			pos = checkPosition(symb[i])
 
-		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False}
+		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
+				"sellPer": 0, "buyPer": 0, "buyWait": 0, "sellWait":0,"dropSell":0}
 		collection.insert_one(post)
 
 def dbLoad() -> collections.defaultdict:

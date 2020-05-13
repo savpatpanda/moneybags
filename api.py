@@ -126,6 +126,6 @@ def get_price_history(**kwargs):
 		return obj['candles']
 	else:
 		print("FAILED TO GET CANDLES, RETRYING...")
-		time.sleep(1)
+		time.sleep(3)
 		resetToken()
 		return get_price_history(**kwargs)
