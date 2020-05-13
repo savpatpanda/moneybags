@@ -17,7 +17,7 @@ actionHold = 15
 def getCollection():
 	return collection
 
-def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
+def initializeDB(symb, start=0, end=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
 		print(symb[i],end=" ")
@@ -25,7 +25,7 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 		if not SIM:
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=2)
 		else:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=endOfSIMInit,startDate=startOfSIMInit)
+			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=end,startDate=start)
 		max_length = len(obj)
 		v = []
 		vol = []
@@ -62,6 +62,7 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
 				"policy":None}
 		collection.insert_one(post)
+	print("\n")
 
 def dbLoad() -> collections.defaultdict:
 	m = collections.defaultdict(lambda: {})

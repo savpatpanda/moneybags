@@ -61,6 +61,7 @@ def generateSim(symb,starter,endofweek):
 					output = str(obj[current_index]['close']) + ','+str(obj[current_index]['volume']) + '\n'
 					f.write(output)
 					current_index = current_index + 1
+	print('\n')
 
 # Initializes global ed object, returns maximum time steps needed.
 def initializeSim(directory = "./sim/"):
