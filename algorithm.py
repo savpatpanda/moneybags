@@ -507,7 +507,6 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	db = dbLoad()
 
 if __name__ == "__main__":
-	load_dotenv()
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
