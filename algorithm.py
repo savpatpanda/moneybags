@@ -55,19 +55,18 @@ def dateDetermine():
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
 	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
 	initBegin, initEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
-	bdelta, bamt = [timeBegin, timeEnd, initBegin, initEnd], None
+	bdelta, bamt = [timeBegin, timeEnd, initBegin, initEnd], [0,0,0,0] 
 	if timeBegin.weekday() == 6:
 		bamt = [48] * 4
 	elif timeBegin.weekday() == 5:
 		bamt = [24] * 4
 	elif timeBegin.weekday() == 0:
 		bamt = [0] * 2 + [48] * 2
-	if bamt:
-		for i, v in enumerate(zip(bdelta, bamt)):
-			back = v[1]
-			cur = v[0]
-			cur -= datetime.timedelta(hours=back)
-			bdelta[i] = int(time.mktime(cur.timetuple()) * 1e3)
+	for i, v in enumerate(zip(bdelta, bamt)):
+		back = v[1]
+		cur = v[0]
+		cur -= datetime.timedelta(hours=back)
+		bdelta[i] = int(time.mktime(cur.timetuple()) * 1e3)
 	return bdelta 
 
 startOfSIMPeriod, endOfSIMPeriod, startOfSIMInit, endOfSIMInit = dateDetermine() 
