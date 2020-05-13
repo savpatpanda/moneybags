@@ -28,7 +28,7 @@ wait_time_buy = 20
 wait_time_volumes = 20
 wait_time_sell = 20
 set_back = 0
-SIM = False
+SIM, REF = False, False
 active_trading = False
 counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
@@ -221,7 +221,7 @@ def sellDecision(obj,symbol, policy):
 def buyAmounts(buy_matrix, policy=None):
 	# do the same check for symb
 	# symb = buy_matrix[1]
-	# if "policy" in db[symb] and db[symb]["policy"] is not None:
+	# if not REF and ("policy" in db[symb] and db[symb]["policy"] is not None):
 	# 	policy = db[symb]["policy"] # this probably won't be relevant, mspend and mprop will have to be uniform.
 	ms = max_spend
 	if policy:
@@ -307,7 +307,7 @@ def update(withPolicy = None):
 			continue
 		defPolicy = withPolicy
 		# check if optimal policy exists, otherwise use default
-		if not SIM and ("policy" in db[symb[e]] and db[symb[e]]["policy"] is not None):
+		if not REF and ("policy" in db[symb[e]] and db[symb[e]]["policy"] is not None):
 			defPolicy = db[symb[e]]["policy"]
 
 		if active_trading or not SIM:
@@ -397,20 +397,11 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				update(withPolicy)
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			i += 1
-			if i % 20 == 0 and not SIM:
-				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
-				dbPut(db)
 		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
 			try:
 				updatePreMarket()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			i += 1
-			if i % 20 == 0:
-				resetToken()
-				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
-				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dump()
 			dbPut(db)
@@ -420,6 +411,12 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			logEOD()
 			max_spend_rolling = max_spend
 			exit(1)
+		i += 1
+		if i % 20 == 0 and not SIM:
+			resetToken()
+			currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+			dbPut(db)
+
 	if SIM :
 		currentFile.close()
 		balanceUpdater(endofterm = True)
@@ -522,6 +519,7 @@ if __name__ == "__main__":
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
+			REF = True
 			start, end, initStart, initEnd = dateDetermine()
 			prepareSim(timeStart = start, timeEnd = end, initStart = initStart, initEnd= initEnd)
 			refreshPolicies()
