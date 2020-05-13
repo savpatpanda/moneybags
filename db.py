@@ -60,7 +60,7 @@ def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 			pos = checkPosition(symb[i])
 
 		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
-				"sellPer": 0, "buyPer": 0, "buyWait": 0, "sellWait":0,"dropSell":0}
+				"policy":None}
 		collection.insert_one(post)
 
 def dbLoad() -> collections.defaultdict:

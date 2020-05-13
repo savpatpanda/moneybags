@@ -134,10 +134,10 @@ def buy_sub_decision(symbol,drop, policy=None):
 	else:
 		return max_buy_dollars
 
-def buyDecision(obj,symbol, policy):
+def buyDecision(obj,symbol,policy):
 	ask, askSlope, waitB, vol = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"], db[symbol]["moving"]
 
-	buyThreshold, waitThreshold = change_min_buy, wait_time_buy
+	buyThreshold, waitThreshold = db[symbol]["policy"]["buy"],db[symbol]["policy"]["bwait"]
 	if policy:
 		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
 		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
@@ -171,7 +171,7 @@ def buyDecision(obj,symbol, policy):
 
 def sellDecision(obj,symbol, policy):
 	bid, bidSlope, waitS, existing, readySell = db[symbol]["bidPrice"], db[symbol]["bidSlope"], db[symbol]["wait_sell"], db[symbol]["pos"], db[symbol]["readySell"]
-	sellThreshold, waitThreshold, dropThreshold = change_min_sell, wait_time_sell, drop_percent
+	sellThreshold, waitThreshold, dropThreshold = db[symbol]["policy"]["sell"],db[symbol]["policy"]["swait"],db[symbol]["policy"]["dropsell"] 
 	if policy:
 		sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
 		waitThreshold = policy["swait"] if "swait" in policy else waitThreshold
@@ -445,8 +445,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [1,2,3,4,5], [5,10,20,50]
-	ps, pswait, pds = [1,2,3,4,5], [5,10,20,50], [1,2,3]
+	pb, pbwait = [3,4,5], [5,10,20]
+	ps, pswait, pds = [3,4,5], [5,10,20], [2,3]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -497,7 +497,6 @@ def refreshPolicies():
 			res = optimizeEquity(sym)
 			f.write("%s: %s\n" % (sym, res))
 			print("%s: %s\n" % (sym, res))
-			# db.savePolicy(sym, res) TODOOOO
 			m[sym] = { "policy": res }
 		f.close()
 	dbPut(m) # not sure this will override existing data in the db
@@ -514,9 +513,10 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	load_dotenv()
-	collection.delete_many({})
 	print("moneybags v1")
+	start, end, initStart, initEnd = dateDetermine()
 	if len(sys.argv) > 1:
+		collection.delete_many({})
 		if sys.argv[1] == 'sim':
 			prepareSim()
 			loop(maxTimeStep = sim.initializeSim())
@@ -525,12 +525,9 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			start, end, initStart, initEnd = dateDetermine()
 			prepareSim(timeStart = start, timeEnd = end, initStart = initStart, initEnd= initEnd)
 			refreshPolicies()
 	else:
-		while datetime.datetime.now().time() <= datetime.time(6,00):
-			time.sleep(60)
-		initializeDB(symb)
+		initializeDB(symb,startOfSIMInit=initStart,endOfSIMInit=end)
 		db = dbLoad()
 		loop()
