@@ -12,7 +12,7 @@ def loadFile(directory):
 		exit(1)
 	maxTimeStep = 0
 	for (root, dirs, files) in os.walk(directory):
-		print("Found %d files.\n" % len(files))
+		#print("Found %d files.\n" % len(files))
 		for file in files:
 			equity = file.split('.')[0]
 			with open(directory + file) as f:
@@ -64,5 +64,5 @@ def generateSim(symb,starter,endofweek):
 
 # Initializes global ed object, returns maximum time steps needed.
 def initializeSim(directory = "./sim/"):
-	print("Loading sim...")
+	#print("Loading sim...")
 	return loadFile(directory)

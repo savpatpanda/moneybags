@@ -15,7 +15,7 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb = ['BXC','ACBI','ACIU']
+symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP']
 #symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
 change_min_buy = 5 #minimum percentage drop to initiate buy sequence
 change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
@@ -34,7 +34,7 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 
 #balance init
-balance = 230#getBalance()
+balance = getBalance()
 initialBalance = balance
 unsettled_today = 0
 unsettled_yday = 0
@@ -423,7 +423,7 @@ def getPolicyScore(policy):
 	counter_close = 0
 	max_spend_rolling = policy['mspend']
 	active_trading = False
-	print("EVALUATING: %s" % policy)
+	#print("EVALUATING: %s" % policy)
 	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
 
 def optimizeParams() -> map:
@@ -448,11 +448,11 @@ def optimizeParams() -> map:
 	with open(combinations_store,'w') as f:
 
 		for buy, bwait, sell, swait, dropsell, ms, mp in combinations:
-			print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
+			#print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
 			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell, "mspend": ms, "mprop": mp}
 			currentScore = getPolicyScore(m)
-			print(m)
-			print("score output: %s" % currentScore)
+			#print(m)
+			#print("score output: %s" % currentScore)
 			if (currentScore > topScore):
 				topPolicy = m
 				topScore = currentScore
@@ -464,7 +464,10 @@ def optimizeParams() -> map:
 		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
-		return topPolicy
+		if topScore <= 0: 
+			return {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+		else:
+			return topPolicy
 
 def optimizeEquity(symbol) -> map:
 	global symb
@@ -480,6 +483,7 @@ def refreshPolicies():
 		for sym in cp:
 			res = optimizeEquity(sym)
 			f.write("%s: %s\n" % (sym, res))
+			print("%s: %s\n" % (sym, res))
 			# db.savePolicy(sym, res) TODOOOO
 		f.close()
 	symb = cp

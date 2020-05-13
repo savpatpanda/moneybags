@@ -18,7 +18,7 @@ def getCollection():
 def initializeDB(symb, startOfSIMInit=0, endOfSIMInit=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
-		print(symb[i])
+		print(symb[i],end=" ")
 		obj = None
 		if not SIM:
 			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=2)
