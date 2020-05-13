@@ -1,4 +1,7 @@
+from dotenv import load_dotenv
+load_dotenv()
 import math
+import os
 import numpy as np
 from api import buy, sell, get_quotes, getBalance, resetToken
 import datetime
@@ -25,7 +28,7 @@ wait_time_buy = 20
 wait_time_volumes = 20
 wait_time_sell = 20
 set_back = 0
-SIM = False
+SIM, REF = False, False
 active_trading = False
 counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
@@ -52,18 +55,22 @@ def dateDetermine():
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
 	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
 	initBegin, initEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
+	bdelta, bamt = [timeBegin, timeEnd, initBegin, initEnd], None
 	if timeBegin.weekday() == 6:
-		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=48), timeEnd - datetime.timedelta(hours=48), initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+		bamt = [48] * 4
 	elif timeBegin.weekday() == 5:
-		timeBegin, timeEnd, initBegin, initEnd = timeBegin - datetime.timedelta(hours=24), timeEnd - datetime.timedelta(hours=24), initBegin - datetime.timedelta(hours=24), initEnd - datetime.timedelta(hours=24)
+		bamt = [24] * 4
 	elif timeBegin.weekday() == 0:
-		initBegin, initEnd = initBegin - datetime.timedelta(hours=48), initEnd - datetime.timedelta(hours=48)
+		bamt = [0] * 2 + [48] * 2
+	if bamt:
+		for i, v in enumerate(zip(bdelta, bamt)):
+			back = v[1]
+			cur = v[0]
+			cur -= datetime.timedelta(hours=back)
+			bdelta[i] = int(time.mktime(cur.timetuple()) * 1e3)
+	return bdelta 
 
-	timeBegin, timeEnd, initBegin, initEnd = time.mktime(timeBegin.timetuple()) * 1e3, time.mktime(timeEnd.timetuple()) * 1e3 , time.mktime(initBegin.timetuple()) * 1e3 ,time.mktime(initEnd.timetuple()) * 1e3 
-	return (int(timeBegin),int(timeEnd),int(initBegin),int(initEnd))
-
-timesForSIM = dateDetermine()
-startOfSIMInit, endOfSIMInit, startOfSIMPeriod, endOfSIMPeriod = timesForSIM[2],timesForSIM[3],timesForSIM[0],timesForSIM[1]
+startOfSIMPeriod, endOfSIMPeriod, startOfSIMInit, endOfSIMInit = dateDetermine() 
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -212,6 +219,10 @@ def sellDecision(obj,symbol, policy):
 		return (0,0,0)
 
 def buyAmounts(buy_matrix, policy=None):
+	# do the same check for symb
+	# symb = buy_matrix[1]
+	# if not REF and ("policy" in db[symb] and db[symb]["policy"] is not None):
+	# 	policy = db[symb]["policy"] # this probably won't be relevant, mspend and mprop will have to be uniform.
 	ms = max_spend
 	if policy:
 		ms = policy["mspend"] if "mspend" in policy else ms
@@ -294,10 +305,14 @@ def update(withPolicy = None):
 
 		if obj is None:
 			continue
+		defPolicy = withPolicy
+		# check if optimal policy exists, otherwise use default
+		if not REF and ("policy" in db[symb[e]] and db[symb[e]]["policy"] is not None):
+			defPolicy = db[symb[e]]["policy"]
 
 		if active_trading or not SIM:
-			buyDec = buyDecision(obj,symb[e], withPolicy)
-			sellDec = sellDecision(obj,symb[e], withPolicy)
+			buyDec = buyDecision(obj,symb[e], defPolicy)
+			sellDec = sellDecision(obj,symb[e], defPolicy)
 			if(sellDec[1] == 'sell'):
 				sell_matrix.append([sellDec[0],symb[e],sellDec[2],sellDec[3]])
 			if(buyDec[1] == 'buy'):
@@ -382,20 +397,11 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				update(withPolicy)
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			i += 1
-			if i % 20 == 0 and not SIM:
-				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
-				dbPut(db)
 		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
 			try:
 				updatePreMarket()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-			i += 1
-			if i % 20 == 0:
-				resetToken()
-				currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
-				dbPut(db)
 		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
 			dump()
 			dbPut(db)
@@ -405,6 +411,12 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			logEOD()
 			max_spend_rolling = max_spend
 			exit(1)
+		i += 1
+		if i % 20 == 0 and not SIM:
+			resetToken()
+			currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
+			dbPut(db)
+
 	if SIM :
 		currentFile.close()
 		balanceUpdater(endofterm = True)
@@ -479,13 +491,16 @@ def refreshPolicies():
 	global SIM, symb
 	cp = symb.copy()
 	SIM = True
+	m = {}
 	with open('refreshedPolicies.log', 'w') as f:
 		for sym in cp:
 			res = optimizeEquity(sym)
 			f.write("%s: %s\n" % (sym, res))
 			print("%s: %s\n" % (sym, res))
 			# db.savePolicy(sym, res) TODOOOO
+			m[sym] = { "policy": res }
 		f.close()
+	dbPut(m) # not sure this will override existing data in the db
 	symb = cp
 
 def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
@@ -497,17 +512,8 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	sim.generateSim(symb, timeStart, timeEnd)
 	db = dbLoad()
 
-#def train():
-#	indexes = symb.copy()
-#	global symb
-#	for i in range(len(indexes)):
-#		symb = indexes[i]
-#		policy = optimizeParams()
-#		db[symb]["buyPer"], db[symb]["sellPer"],db[symb]["buyWait"],db[symb]["sellWait"],db[symb]["dropSell"] = policy["buy"],policy["sell"],policy["bwait"],policy["swait"],policy["dropsell"]
-#	symp = indexes
-#	dbPut(db)
-
 if __name__ == "__main__":
+	load_dotenv()
 	collection.delete_many({})
 	print("moneybags v1")
 	if len(sys.argv) > 1:
@@ -518,13 +524,13 @@ if __name__ == "__main__":
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
-			times = dateDetermine()
-			prepareSim(timeStart = times[0], timeEnd = times[1],initStart=times[2], initEnd=times[3])
+			REF = True
+			start, end, initStart, initEnd = dateDetermine()
+			prepareSim(timeStart = start, timeEnd = end, initStart = initStart, initEnd= initEnd)
 			refreshPolicies()
 	else:
 		while datetime.datetime.now().time() <= datetime.time(6,00):
 			time.sleep(60)
-		#train()
 		initializeDB(symb)
 		db = dbLoad()
 		loop()
