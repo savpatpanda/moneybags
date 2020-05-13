@@ -131,8 +131,8 @@ def buy_sub_decision(symbol,drop, policy=None):
 
 def buyDecision(obj,symbol,policy):
 	ask, askSlope, waitB, vol = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"], db[symbol]["moving"]
-	buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
-	waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
+	buyThreshold = policy["buy"] 
+	waitThreshold = policy["bwait"] 
 
 	high = max(ask[:-30])#max(ask[-180:-20])
 	drop = (ask[-1] - high) / high*100
@@ -163,9 +163,9 @@ def buyDecision(obj,symbol,policy):
 
 def sellDecision(obj,symbol, policy):
 	bid, bidSlope, waitS, existing, readySell = db[symbol]["bidPrice"], db[symbol]["bidSlope"], db[symbol]["wait_sell"], db[symbol]["pos"], db[symbol]["readySell"]
-	sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
-	waitThreshold = policy["swait"] if "swait" in policy else waitThreshold
-	dropThreshold = policy["dropsell"] if "dropsell" in policy else dropThreshold
+	sellThreshold = policy["sell"] 
+	waitThreshold = policy["swait"] 
+	dropThreshold = policy["dropsell"] 
 
 	if(existing[1]>0):
 		numberShares = existing[0]
@@ -299,6 +299,8 @@ def update(withPolicy = None):
 		# check if optimal policy exists, otherwise use default
 		if not REF and ("policy" in db[symb[e]] and db[symb[e]]["policy"] is not None):
 			defPolicy = db[symb[e]]["policy"]
+		elif defPolicy is None: #defPolicy must be populated
+			defPolicy = defaultParams
 
 		if active_trading or not SIM:
 			buyDec = buyDecision(obj,symb[e], defPolicy)
