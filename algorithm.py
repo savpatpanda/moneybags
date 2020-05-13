@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+load_dotenv()
 import math
 import os
 import numpy as np
@@ -113,7 +114,7 @@ def update_vals(symbol,new_val):
 
 	return db[symbol]
 
-def buy_sub_decision(symbol,drop,buy, policy=None):
+def buy_sub_decision(symbol,drop, policy=None):
 	mp = max_proportion
 	if policy:
 		mp = policy["mprop"] if "mprop" in policy else mp
@@ -121,7 +122,7 @@ def buy_sub_decision(symbol,drop,buy, policy=None):
 	cost_basis = existing[0]*existing[1]
 	max_buy_dollars = balance*mp - cost_basis
 	if(cost_basis>=balance*mp):		
-		if(drop < -allow_factor*buy):
+		if(drop < -allow_factor*policy["buy"]):
 			return max_buy_dollars
 		else:
 			return 0
@@ -130,11 +131,8 @@ def buy_sub_decision(symbol,drop,buy, policy=None):
 
 def buyDecision(obj,symbol,policy):
 	ask, askSlope, waitB, vol = db[symbol]["askPrice"], db[symbol]["askSlope"], db[symbol]["wait_buy"], db[symbol]["moving"]
-
-	buyThreshold, waitThreshold = db[symbol]["policy"]["buy"],db[symbol]["policy"]["bwait"]
-	if policy:
-		buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
-		waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
+	buyThreshold = policy["buy"] if "buy" in policy else buyThreshold
+	waitThreshold = policy["bwait"] if "bwait" in policy else waitThreshold
 
 	high = max(ask[:-30])#max(ask[-180:-20])
 	drop = (ask[-1] - high) / high*100
@@ -146,7 +144,7 @@ def buyDecision(obj,symbol,policy):
 				db[symbol]["wait_buy"] -= set_back
 				return (0,0,0)
 			else:
-				numberShares = float(round((buy_sub_decision(symbol,drop,buyThreshold) / ask[-1]),5))
+				numberShares = float(round((buy_sub_decision(symbol,drop) / ask[-1]),5))
 				if(numberShares>0):
 					db[symbol]["wait_buy"] = 0
 					hldr = "high : %d, drop %f" % (high, drop)
@@ -165,11 +163,9 @@ def buyDecision(obj,symbol,policy):
 
 def sellDecision(obj,symbol, policy):
 	bid, bidSlope, waitS, existing, readySell = db[symbol]["bidPrice"], db[symbol]["bidSlope"], db[symbol]["wait_sell"], db[symbol]["pos"], db[symbol]["readySell"]
-	sellThreshold, waitThreshold, dropThreshold = db[symbol]["policy"]["sell"],db[symbol]["policy"]["swait"],db[symbol]["policy"]["dropsell"] 
-	if policy:
-		sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
-		waitThreshold = policy["swait"] if "swait" in policy else waitThreshold
-		dropThreshold = policy["dropsell"] if "dropsell" in policy else dropThreshold
+	sellThreshold = policy["sell"] if "sell" in policy else sellThreshold
+	waitThreshold = policy["swait"] if "swait" in policy else waitThreshold
+	dropThreshold = policy["dropsell"] if "dropsell" in policy else dropThreshold
 
 	if(existing[1]>0):
 		numberShares = existing[0]
@@ -507,7 +503,6 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 	db = dbLoad()
 
 if __name__ == "__main__":
-	load_dotenv()
 	print("moneybags v1")
 	start, end, initStart, initEnd = dateDetermine()
 	if len(sys.argv) > 1:
