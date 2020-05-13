@@ -505,7 +505,7 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	print("moneybags v1")
-	start, end, initStart, initEnd = dateDetermine()
+	prevDayStart, prevDayEnd, twoDayStart, twoDayEnd = dateDetermine()
 	if len(sys.argv) > 1:
 		collection.delete_many({})
 		if sys.argv[1] == 'sim':
@@ -516,9 +516,9 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			prepareSim(timeStart = start, timeEnd = end, initStart = initStart, initEnd= initEnd)
+			prepareSim(initStart = twoDayStart, initEnd= twoDayEnd, timeStart = prevDayStart, timeEnd = prevDayEnd)
 			refreshPolicies()
 	else:
-		initializeDB(symb,startOfSIMInit=initStart,endOfSIMInit=end)
+		initializeDB(symb,startOfSIMInit=twoDayStart,endOfSIMInit=prevDayEnd)
 		db = dbLoad()
 		loop()
