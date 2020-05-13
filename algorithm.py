@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-load_dotenv()
 import math
 import os
 import numpy as np
@@ -18,23 +17,18 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb = ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP']
+symb= ['BXC','AAL','ACIU']
 #symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
-change_min_buy = 5 #minimum percentage drop to initiate buy sequence
-change_min_sell = 5#minimum percentage increase from buy point to initiate sell sequence
-drop_percent = 2 #percentage drop before dropping investment in stock
-ready_percent = change_min_sell / 2
-wait_time_buy = 20
 wait_time_volumes = 20
-wait_time_sell = 20
 set_back = 0
 SIM, REF = False, False
 active_trading = False
 counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
-allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
 max_spend_rolling = max_spend
+allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
+defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
 balance = getBalance()
@@ -119,7 +113,7 @@ def update_vals(symbol,new_val):
 
 	return db[symbol]
 
-def buy_sub_decision(symbol,drop, policy=None):
+def buy_sub_decision(symbol,drop,buy, policy=None):
 	mp = max_proportion
 	if policy:
 		mp = policy["mprop"] if "mprop" in policy else mp
@@ -127,7 +121,7 @@ def buy_sub_decision(symbol,drop, policy=None):
 	cost_basis = existing[0]*existing[1]
 	max_buy_dollars = balance*mp - cost_basis
 	if(cost_basis>=balance*mp):		
-		if(drop < -allow_factor*change_min_buy):
+		if(drop < -allow_factor*buy):
 			return max_buy_dollars
 		else:
 			return 0
@@ -152,7 +146,7 @@ def buyDecision(obj,symbol,policy):
 				db[symbol]["wait_buy"] -= set_back
 				return (0,0,0)
 			else:
-				numberShares = float(round((buy_sub_decision(symbol,drop) / ask[-1]),5))
+				numberShares = float(round((buy_sub_decision(symbol,drop,buyThreshold) / ask[-1]),5))
 				if(numberShares>0):
 					db[symbol]["wait_buy"] = 0
 					hldr = "high : %d, drop %f" % (high, drop)
@@ -181,7 +175,7 @@ def sellDecision(obj,symbol, policy):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (bid[-1] - avgPrice) / avgPrice * 100
-		if(rise > ready_percent):
+		if(rise > sellThreshold / 2):
 			db[symbol]["readySell"] = True
 
 		if(rise < - dropThreshold):
@@ -206,7 +200,7 @@ def sellDecision(obj,symbol, policy):
 				#print("increasing wait")
 				db[symbol]["wait_sell"] += 1
 				return (0, 0,0)
-		elif(readySell and rise < ready_percent):
+		elif(readySell and rise < sellThreshold / 2):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
@@ -230,7 +224,7 @@ def buyAmounts(buy_matrix, policy=None):
 	for i in range(len(buy_matrix)):
 		sum_drops = sum_drops + buy_matrix[i][0]
 	if sum_drops >0:
-		totalRelative = 1 - (change_min_buy/sum_drops)
+		totalRelative = 1 - (defaultParams["buy"]/sum_drops)
 	else:
 		totalRelative = 1
 	for i in range(len(buy_matrix)):
@@ -476,8 +470,9 @@ def optimizeParams() -> map:
 		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
+
 		if topScore <= 0: 
-			return {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+			return defaultParams
 		else:
 			return topPolicy
 
