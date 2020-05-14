@@ -346,6 +346,8 @@ def dump():
 	resetToken()
 	for sym in symb:
 		position = db[sym]['pos'] 
+		print(sym)
+		print(position)
 		if position[0] > 0:
 			lastBid = db[sym]['bidPrice'][-1]
 			delta = (lastBid - position[1]) / lastBid
@@ -353,6 +355,7 @@ def dump():
 				if not SIM: 
 					time.sleep(1)
 					sell(sym,position[0])
+					print('sell')
 				updateBalanceAndPosition(sym, 'sell', position[0], lastBid)
 		
 def report():
@@ -369,7 +372,7 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	#print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
@@ -507,7 +510,6 @@ if __name__ == "__main__":
 	print("moneybags v1")
 	prevDayStart, prevDayEnd, twoDayStart, twoDayEnd = dateDetermine()
 	if len(sys.argv) > 1:
-		collection.delete_many({})
 		if sys.argv[1] == 'sim':
 			prepareSim()
 			loop(maxTimeStep = sim.initializeSim())
@@ -516,9 +518,10 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
+			collection.delete_many({})
 			prepareSim(initStart = twoDayStart, initEnd= twoDayEnd, timeStart = prevDayStart, timeEnd = prevDayEnd)
 			refreshPolicies()
 	else:
-		initializeDB(symb,startOfSIMInit=twoDayStart,endOfSIMInit=prevDayEnd)
+		initializeDB(symb,start=twoDayStart,end=prevDayEnd)
 		db = dbLoad()
 		loop()

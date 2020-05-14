@@ -17,6 +17,10 @@ actionHold = 15
 def getCollection():
 	return collection
 
+def dbPut(db):
+	for key, value in db.items():
+		collection.update_one({"_id": key}, {"$set": value})
+
 def initializeDB(symb, start=0, end=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
@@ -59,9 +63,13 @@ def initializeDB(symb, start=0, end=0, SIM=False):
 		else:
 			pos = checkPosition(symb[i])
 
-		post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
+		if collection.find({"_id":symb[i]}) is None:
+			post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
 				"policy":None}
-		collection.insert_one(post)
+			collection.insert_one(post)
+		else:
+			post = {symb[i]:{"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False}}
+			dbPut(post)
 	print("\n")
 
 def dbLoad() -> collections.defaultdict:
@@ -76,10 +84,6 @@ def dbLoad() -> collections.defaultdict:
 
 def cleanup():
 	cluster.close()
-
-def dbPut(db):
-	for key, value in db.items():
-		collection.update_one({"_id": key}, {"$set": value})
 
 def logEOD(): 
 	cluster.close()
