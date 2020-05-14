@@ -46,25 +46,21 @@ db = None
 def getSIMParams(epochStart, epochEnd):
 	return (epochStart, epochStart + 43200000, epochStart + 86400000, epochEnd)
 
-def dateDetermine():
+def tradingDay(back):
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
-	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
-	initBegin, initEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
-	bdelta, bamt = [timeBegin, timeEnd, initBegin, initEnd], [0,0,0,0] 
+	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17+24*(back-1)), midnight - datetime.timedelta(hours = 4+24*(back-1))
+	bdelta = [timeBegin, timeEnd] 
 	if timeBegin.weekday() == 6:
-		bamt = [48] * 4
+		return tradingDay(back+2)
 	elif timeBegin.weekday() == 5:
-		bamt = [24] * 4
-	elif timeBegin.weekday() == 0:
-		bamt = [0] * 2 + [48] * 2
-	for i, v in enumerate(zip(bdelta, bamt)):
-		back = v[1]
-		cur = v[0]
-		cur -= datetime.timedelta(hours=back)
-		bdelta[i] = int(time.mktime(cur.timetuple()) * 1e3)
+		return tradingDay(back+1)
+	for i in range(len(bdelta)):
+		bdelta[i] = int(time.mktime(bdelta[i].timetuple()) * 1e3)
 	return bdelta 
 
-startOfSIMPeriod, endOfSIMPeriod, startOfSIMInit, endOfSIMInit = dateDetermine() 
+starting = 2 #days ago to start SIM
+startOfSIMPeriod, endOfSIMPeriod = tradingDay(starting-1)
+startOfSIMInit, endOfSIMInit = tradingDay(starting)
 
 def update_vals(symbol,new_val):
 	global active_trading, counter_close
@@ -372,7 +368,8 @@ def report():
 		total_value = total_value + firstPos * lastBid #get_quotes(symbol=symb[i])
 	total_value = total_value + unsettled_yday +unsettled_today
 	totalChange = (total_value - initialBalance) / total_value *100
-	print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
+	if not REF:
+		print("Available Funds: $" + str(balance) + "\nTotal Value: $"+str(total_value) + "\nDaily Change: "+str(totalChange)+"%")
 	return (totalChange, total_value)
 
 def loop(maxTimeStep = 1e9, withPolicy = None):
@@ -508,7 +505,8 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	print("moneybags v1")
-	prevDayStart, prevDayEnd, twoDayStart, twoDayEnd = dateDetermine()
+	prevDayStart, prevDayEnd = tradingDay(1)
+	twoDayStart, twoDayEnd = tradingDay(2)
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
 			prepareSim()

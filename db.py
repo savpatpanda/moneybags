@@ -26,10 +26,7 @@ def initializeDB(symb, start=0, end=0, SIM=False):
 	for i in range(len(symb)):
 		print(symb[i],end=" ")
 		obj = None
-		if not SIM:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,periodType='day',period=2)
-		else:
-			obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=end,startDate=start)
+		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=end,startDate=start)
 		max_length = len(obj)
 		v = []
 		vol = []
@@ -63,7 +60,7 @@ def initializeDB(symb, start=0, end=0, SIM=False):
 		else:
 			pos = checkPosition(symb[i])
 
-		if collection.find({"_id":symb[i]}) is None:
+		if collection.find({"_id":symb[i]}).count() ==0:
 			post = {"_id":symb[i],"bidPrice":v, "askPrice":v, "bidSlope":s, "askSlope":s, "volume": vol, "moving":moving, "volumeSlope": volS, "wait_buy":0,"wait_sell":0,"pos":pos,"readySell":False,
 				"policy":None}
 			collection.insert_one(post)
