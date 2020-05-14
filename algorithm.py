@@ -516,6 +516,8 @@ if __name__ == "__main__":
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
 	else:
+		twoDayStart, twoDayEnd = tradingDay(2)
+		prevDayStart, prevDayEnd = tradingDay(1)
 		initializeDB(symb,start=twoDayStart,end=prevDayEnd)
 		db = dbLoad()
 		loop()
