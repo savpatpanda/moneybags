@@ -135,7 +135,7 @@ def buyDecision(obj,symbol,policy):
 				db[symbol]["wait_buy"] -= set_back
 				return (0,0,0)
 			else:
-				numberShares = float(round((buy_sub_decision(symbol,drop) / ask[-1]),5))
+				numberShares = float(round((buy_sub_decision(symbol,drop,policy) / ask[-1]),5))
 				if(numberShares>0):
 					db[symbol]["wait_buy"] = 0
 					hldr = "high : %d, drop %f" % (high, drop)
@@ -337,7 +337,8 @@ def update(withPolicy = None):
 def dump():
 	resetToken()
 	for sym in symb:
-		position = db[sym]['pos']
+		position = checkPosition(sym)
+		lastBid = db[sym]['bidPrice'][-1]
 		if position[0] > 0:
 			if not SIM: 
 				time.sleep(1)
@@ -426,10 +427,10 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5], [10,20]
-	ps, pswait, pds = [3,4,5], [10,20], [2,3,4]
+	pb, pbwait = [5], [20]
+	ps, pswait, pds = [5], [20], [4]
 	pms, pmp = [0.2], [0.3]
-
+	
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
 	topScore = -1e9 # needs floor
@@ -504,7 +505,7 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			backtrack = 3
+			backtrack = 2
 			startOfREFInit, endOfREFInit = tradingDay(backtrack)
 			startOfREFPeriod, endOfREFPeriod = tradingDay(backtrack-1)[0], tradingDay(1)[1]
 			collection.delete_many({})
