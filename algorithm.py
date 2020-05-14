@@ -431,8 +431,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [1,2,3,4,5], [5,10,20,50]
-	ps, pswait, pds = [1,2,3,4,5], [5,10,20,50], [1,2,3]
+	pb, pbwait = [2,3,4,5], [5,10,20]
+	ps, pswait, pds = [2,3,4,5], [5,10,20], [1,2,3,4]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -500,8 +500,6 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	print("moneybags v1")
-	prevDayStart, prevDayEnd = tradingDay(1)
-	twoDayStart, twoDayEnd = tradingDay(2)
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
 			prepareSim()
@@ -511,8 +509,11 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
+			backtrack = 5
+			startOfREFInit, endOfREFInit = tradingDay(backtrack)
+			startOfREFPeriod, endOfREFPeriod = tradingDay(backtrack-1)[0], tradingDay(1)[1]
 			collection.delete_many({})
-			prepareSim(initStart = twoDayStart, initEnd= twoDayEnd, timeStart = prevDayStart, timeEnd = prevDayEnd)
+			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
 	else:
 		initializeDB(symb,start=twoDayStart,end=prevDayEnd)
