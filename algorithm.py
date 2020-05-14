@@ -426,8 +426,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [2,3,4,5], [5,10,20]
-	ps, pswait, pds = [2,3,4,5], [5,10,20], [1,2,3,4]
+	pb, pbwait = [3,4,5], [10,20]
+	ps, pswait, pds = [3,4,5], [10,20], [2,3,4]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -504,7 +504,7 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			backtrack = 5
+			backtrack = 3
 			startOfREFInit, endOfREFInit = tradingDay(backtrack)
 			startOfREFPeriod, endOfREFPeriod = tradingDay(backtrack-1)[0], tradingDay(1)[1]
 			collection.delete_many({})
