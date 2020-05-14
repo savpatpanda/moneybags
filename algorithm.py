@@ -53,8 +53,9 @@ def tradingDay(back):
 		bdelta[i] = int(time.mktime(bdelta[i].timetuple()) * 1e3)
 	return bdelta 
 
-starting = 2 #days ago to start SIM
-startOfSIMPeriod, endOfSIMPeriod = tradingDay(starting-1)
+starting = 5 #days ago to start SIM
+startOfSIMPeriod = tradingDay(starting-1)[0]
+endOfSIMPeriod = tradingDay(1)[1]
 startOfSIMInit, endOfSIMInit = tradingDay(starting)
 
 def update_vals(symbol,new_val):
@@ -336,19 +337,13 @@ def update(withPolicy = None):
 def dump():
 	resetToken()
 	for sym in symb:
-		position = db[sym]['pos'] 
-		print(sym)
-		print(position)
+		position = db[sym]['pos']
 		if position[0] > 0:
-			lastBid = db[sym]['bidPrice'][-1]
-			delta = (lastBid - position[1]) / lastBid
-			if not (-1 <= delta <= 1) :
-				if not SIM: 
-					time.sleep(1)
-					sell(sym,position[0])
-					print('sell')
-				updateBalanceAndPosition(sym, 'sell', position[0], lastBid)
-		
+			if not SIM: 
+				time.sleep(1)
+				sell(sym,position[0])
+			updateBalanceAndPosition(sym, 'sell', position[0], lastBid)
+	
 def report():
 	total_value = balance
 	deltas = []
@@ -377,7 +372,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	i = 1
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(16,00) or SIM:
+		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(15,57) or SIM:
 			try:
 				balanceUpdater()
 				update(withPolicy)
@@ -388,7 +383,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				updatePreMarket()
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-		elif datetime.time(16,30) >= datetime.datetime.now().time() > datetime.time(16,00):
+		elif datetime.time(15,57) <= datetime.datetime.now().time() < datetime.time(16,30):
 			dump()
 			dbPut(db)
 			# refreshPolicies()
