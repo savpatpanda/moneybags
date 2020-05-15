@@ -28,6 +28,7 @@ max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage 
 max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
 max_spend_rolling = max_spend
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
+declineSell = 0.75
 defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
@@ -43,6 +44,8 @@ db = None
 
 def tradingDay(back):
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
+	if datetime.datetime.now().hour >= 16:
+		midnight = midnight + datetime.timedelta(days = 1)
 	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17+24*(back-1)), midnight - datetime.timedelta(hours = 4+24*(back-1))
 	bdelta = [timeBegin, timeEnd] 
 	if timeBegin.weekday() == 6:
@@ -53,7 +56,7 @@ def tradingDay(back):
 		bdelta[i] = int(time.mktime(bdelta[i].timetuple()) * 1e3)
 	return bdelta 
 
-starting = 5 #days ago to start SIM
+starting = 2 #days ago to start SIM
 startOfSIMPeriod = tradingDay(starting-1)[0]
 endOfSIMPeriod = tradingDay(1)[1]
 startOfSIMInit, endOfSIMInit = tradingDay(starting)
@@ -162,7 +165,7 @@ def sellDecision(obj,symbol, policy):
 		numberShares = existing[0]
 		avgPrice = existing[1]
 		rise = (bid[-1] - avgPrice) / avgPrice * 100
-		if(rise > sellThreshold / 2):
+		if(rise > sellThreshold * declineSell):
 			db[symbol]["readySell"] = True
 
 		if(rise < - dropThreshold):
@@ -187,7 +190,7 @@ def sellDecision(obj,symbol, policy):
 				#print("increasing wait")
 				db[symbol]["wait_sell"] += 1
 				return (0, 0,0)
-		elif(readySell and rise < sellThreshold / 2):
+		elif(readySell and rise < sellThreshold * declineSell):
 			db[symbol]["wait_sell"] = 0
 			hldr = "rise %f" % (rise)
 			currentFile.write("[SELL ALERT] : \nCurrent Time: %s\nEquity: %s\nSell Price: %f\nStats:\n\t%s\n\t%s\n\t%s\n" % 
@@ -427,10 +430,10 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [5], [20]
-	ps, pswait, pds = [5], [20], [4]
+	pb, pbwait = [3,5,7], [20]
+	ps, pswait, pds = [3,5,7], [20], [4]
 	pms, pmp = [0.2], [0.3]
-	
+
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
 	topPolicy = None
 	topScore = -1e9 # needs floor
@@ -486,7 +489,9 @@ def refreshPolicies():
 	symb = cp
 
 def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
-	global SIM, db
+	global SIM, db, balance, initialBalance
+	balance = 300
+	initialBalance = 300
 	SIM = True
 	print("Preparing with init: %d-%d, sim: %d-%d" % (initStart, initEnd, timeStart, timeEnd))
 	initializeDB(symb, initStart, initEnd, SIM)
@@ -507,7 +512,8 @@ if __name__ == "__main__":
 			REF = True
 			backtrack = 2
 			startOfREFInit, endOfREFInit = tradingDay(backtrack)
-			startOfREFPeriod, endOfREFPeriod = tradingDay(backtrack-1)[0], tradingDay(1)[1]
+			startOfREFPeriod = tradingDay(backtrack-1)[0]			
+			endOfREFPeriod = tradingDay(1)[1]
 			collection.delete_many({})
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
