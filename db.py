@@ -24,7 +24,7 @@ def dbPut(db):
 def initializeDB(symb, start=0, end=0, SIM=False):
 	#initializing values in database
 	for i in range(len(symb)):
-		print(symb[i],end=" ")
+		print(symb[i],end=" ", flush=True)
 		obj = None
 		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=frequency,endDate=end,startDate=start)
 		max_length = len(obj)

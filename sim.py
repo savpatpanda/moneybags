@@ -40,7 +40,7 @@ def generateSim(symb,starter,endofweek):
 		obj = get_price_history(symbol = symb[i],frequencyType='minute',frequency=1,startDate=starter,endDate=endofweek)
 		initial = int(starter / 60000)
 		final = int(endofweek / 60000)
-		print(symb[i], end = " ")
+		print(symb[i], end = " ", flush = True)
 		with open(filename,'w') as f:
 			current_index = 0
 			for j in range(initial,final+1,1):

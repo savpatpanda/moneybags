@@ -413,7 +413,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 def getPolicyScore(policy):
 	global db
 	global balance, counter_close, active_trading, unsettled_today, unsettled_yday, max_spend_rolling
-	db = dbLoad()
+	dbCopy = db.copy()
 	balance = initialBalance
 	unsettled_yday = 0
 	unsettled_today = 0
@@ -421,7 +421,9 @@ def getPolicyScore(policy):
 	max_spend_rolling = policy['mspend']
 	active_trading = False
 	#print("EVALUATING: %s" % policy)
-	return loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
+	ret = loop(maxTimeStep = sim.initializeSim(), withPolicy = policy)
+	db = dbCopy
+	return ret
 
 def optimizeParams() -> map:
 	global SIM
@@ -448,8 +450,8 @@ def optimizeParams() -> map:
 			#print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
 			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell, "mspend": ms, "mprop": mp}
 			currentScore = getPolicyScore(m)
-			#print(m)
-			#print("score output: %s" % currentScore)
+			# print(m)
+			# print("score output: %s" % currentScore)
 			if (currentScore > topScore):
 				topPolicy = m
 				topScore = currentScore
