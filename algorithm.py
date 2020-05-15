@@ -18,7 +18,7 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
+symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F']#'CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
 wait_time_volumes = 20
 set_back = 0
 SIM, REF = False, False
@@ -484,8 +484,9 @@ def refreshPolicies():
 			f.write("%s: %s\n" % (sym, res))
 			print("%s: %s\n" % (sym, res))
 			m[sym] = { "policy": res }
+			dbPut(m)
+			m = {}
 		f.close()
-	dbPut(m) # not sure this will override existing data in the db
 	symb = cp
 
 def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = startOfSIMPeriod, timeEnd = endOfSIMPeriod):
@@ -510,7 +511,7 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			backtrack = 2
+			backtrack = 3
 			startOfREFInit, endOfREFInit = tradingDay(backtrack)
 			startOfREFPeriod = tradingDay(backtrack-1)[0]			
 			endOfREFPeriod = tradingDay(1)[1]
