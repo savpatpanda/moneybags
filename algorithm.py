@@ -3,7 +3,7 @@ load_dotenv()
 import math
 import os
 import numpy as np
-from api import buy, sell, get_quotes, getBalance, resetToken
+from api import buy, sell, get_quotes, getBalance, resetToken, checkPosition
 import datetime
 import time
 import graphing
