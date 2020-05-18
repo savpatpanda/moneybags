@@ -440,8 +440,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,5,7], [20]
-	ps, pswait, pds = [3,5,7], [20], [4]
+	pb, pbwait = [3,4,5,6,7,8], [10,20]
+	ps, pswait, pds = [1,2,3,4,5,6], [10,20], [2,3,4]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
