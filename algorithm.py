@@ -48,6 +48,10 @@ def tradingDay(back):
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
 	if datetime.datetime.now().hour >= 16:
 		midnight = midnight + datetime.timedelta(days = 1)
+	if midnight.weekday() == 0:
+		midnight = midnight - datetime.timedelta(days = 2)
+	elif midnight.weekday() == 6:
+		midnight = midnight - datetime.timedelta(days = 1)
 	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17+24*(back-1)), midnight - datetime.timedelta(hours = 4+24*(back-1))
 	bdelta = [timeBegin, timeEnd] 
 	if timeBegin.weekday() == 6:
@@ -519,9 +523,8 @@ if __name__ == "__main__":
 			REF = True
 			backtrack = 3
 			endOfREFPeriod = tradingDay(1)[1]
-			startOfREFPeriod = endOfREFPeriod - 46800000 - (backtrack-1)*86400000
-			startOfREFInit = startOfSIMPeriod - 86400000
-			endOfREFInit = startOfREFInit + 46800000
+			startOfREFPeriod = tradingDay(backtrack)[0]
+			startOfREFInit, endOfREFInit = tradingDay(backtrack+1)
 			collection.delete_many({})
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
