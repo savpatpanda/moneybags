@@ -18,7 +18,7 @@ from db import getCollection, initializeDB, dbLoad, dbPut, logEOD, cleanup
 #fix pinging and token requests
 
 #user-input 
-symb= ['AAL','ACBI','ACIU','ADES','ADVM','AFIN','AGI','ANAB','BXC','CAL','CLR','CLI','GLDD','GLOP','MD','MEET','RA','SSP','VIAC','SSL','VG','WTI','SFNC','NGHC','CALM','PBH','HASI','PING','ENSG','SAIA','EVR','PACW','DORM','BAND','PSMT','HFC','GE','F','CCL','WFC','MRO','OXY','HAL','XOM','APA','GM','SLB','WMB','CLF','AM','HPQ','SM','DVN','FRO','ABB','ABR','AZUL','OFC','OFG','OI','OLP','OUT','OVV','IBN','IFS','IGA','IHD','TBI','TEAF','TFC','THC','UE','UFI','USFD']
+symb = ['AA', 'AAL', 'AAN', 'ABB', 'ABR', 'ACBI', 'ACHC', 'ACIU', 'ADES', 'ADTN', 'ADVM', 'AFIN', 'AFL', 'AGI', 'AGNC', 'AM', 'ANAB', 'APA', 'AZUL', 'BAND', 'BCRX', 'BEN', 'BSX', 'BXC', 'CAL', 'CALM', 'CCL', 'CLF', 'CLI', 'CLR', 'CMCSA', 'CNP', 'CSCO', 'CVM', 'CYTK', 'DBVT', 'DDS', 'DEI', 'DFIN', 'DFS', 'DORM', 'DVN', 'ENSG', 'EVR', 'F', 'FCX', 'FITB', 'FOLD', 'FRO', 'GDOT', 'GDV', 'GE', 'GFF', 'GGAL', 'GLAD', 'GLDD', 'GLOP', 'GLPI', 'GM', 'GPS', 'HAL', 'HASI', 'HBAN', 'HFC', 'HPQ', 'HST', 'IBN', 'IGA', 'IMO', 'IVZ', 'KGC', 'KIM', 'LUV', 'M', 'MD', 'MEET', 'MRO', 'MYL', 'NG', 'NGHC', 'NLY', 'OFC', 'OFG', 'OI', 'OLP', 'OMF', 'ONEM', 'OPRA', 'OR', 'OSPN', 'OSTK', 'OUT', 'OVV', 'OXY', 'PAAS', 'PACW', 'PBH', 'PCG', 'PENN', 'PFE', 'PING', 'PPL', 'PSMT', 'PW', 'RA', 'SAIA', 'SFNC', 'SIRI', 'SLB', 'SM', 'SSL', 'SSP', 'TBI', 'TEAF', 'TFC', 'THC', 'UE', 'UFI', 'USFD', 'VG', 'VHC', 'VIAC', 'WFC', 'WMB', 'WTI', 'WU', 'XOM']
 wait_time_volumes = 20
 set_back = 0
 SIM, REF = False, False
@@ -27,6 +27,7 @@ counter_close = 0
 max_proportion = 0.3 #maximum proportion a given equity can occupy in brokerage account
 max_spend = 0.2 #maximum amount of balance to spend in given trading minute in dollars
 max_spend_rolling = max_spend
+max_daily_spend = 0.75
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 declineSell = 0.75
 defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
@@ -34,6 +35,7 @@ defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "
 #balance init
 balance = getBalance()
 initialBalance = balance
+spent_today = 0
 unsettled_today = 0
 unsettled_yday = 0
 
@@ -128,7 +130,7 @@ def buyDecision(obj,symbol,policy):
 	buyThreshold = policy["buy"] 
 	waitThreshold = policy["bwait"] 
 
-	high = max(ask[:-30])#max(ask[-180:-20])
+	high = max(ask[:-30])
 	drop = (ask[-1] - high) / high*100
 	halfmax = max(vol) * 0.5
 
@@ -241,7 +243,7 @@ def balanceUpdater(endofterm = False):
 			unsettled_yday = 0
 
 def updateBalanceAndPosition(symbol,action,quant,price):
-	global balance, unsettled_today, unsettled_yday
+	global balance, unsettled_today, unsettled_yday, spent_today
 
 	pos = db[symbol]["pos"]
 	old_quant = pos[0]
@@ -250,6 +252,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 		balance = balance - quant*price
 		new_quant = old_quant + quant
 		new_price = (old_quant*old_price+quant*price) / new_quant
+		spent_today += new_quant*new_price
 		db[symbol]["pos"] = (new_quant,new_price)
 	else:
 		if SIM:
@@ -331,10 +334,11 @@ def update(withPolicy = None):
 
 	while len(buy_matrix)>0 and balance>0:
 		if(buy_matrix[-1][4]>0.001):
-			updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
-			if not SIM: 
-				time.sleep(1)
-				buy(buy_matrix[-1][1],buy_matrix[-1][4])
+			if spent_today < max_daily_spend * initialBalance:
+				updateBalanceAndPosition(buy_matrix[-1][1],'buy',buy_matrix[-1][4],buy_matrix[-1][3])
+				if not SIM: 
+					time.sleep(1)
+					buy(buy_matrix[-1][1],buy_matrix[-1][4])
 		buy_matrix.pop()
 
 def dump():
@@ -514,9 +518,10 @@ if __name__ == "__main__":
 		elif sys.argv[1] == 'ref':
 			REF = True
 			backtrack = 3
-			startOfREFInit, endOfREFInit = tradingDay(backtrack)
-			startOfREFPeriod = tradingDay(backtrack-1)[0]			
 			endOfREFPeriod = tradingDay(1)[1]
+			startOfREFPeriod = endOfREFPeriod - 46800000 - (backtrack-1)*86400000
+			startOfREFInit = startOfSIMPeriod - 86400000
+			endOfREFInit = startOfREFInit + 46800000
 			collection.delete_many({})
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
