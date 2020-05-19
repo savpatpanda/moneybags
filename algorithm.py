@@ -232,7 +232,7 @@ def buyAmounts(buy_matrix, policy=None):
 	return buy_matrix
 
 def balanceUpdater(endofterm = False):
-	global balance, unsettled_today, unsettled_yday, counter_close
+	global balance, unsettled_today, unsettled_yday, counter_close, spent_today
 	if SIM:
 		if not endofterm:
 			if not active_trading and counter_close == len(symb):
@@ -240,11 +240,13 @@ def balanceUpdater(endofterm = False):
 				unsettled_yday = unsettled_today
 				unsettled_today = 0
 				counter_close = 0
+				spent_today = 0
 				# tc = report()[1]
 				# graphing.app(tc)
 				dump()
 		else:
 			balance = balance + unsettled_today + unsettled_yday
+			spent_today = 0
 			unsettled_today = 0
 			unsettled_yday = 0
 
@@ -422,12 +424,13 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 
 def getPolicyScore(policy):
 	global db
-	global balance, counter_close, active_trading, unsettled_today, unsettled_yday, max_spend_rolling
+	global balance, counter_close, active_trading, unsettled_today, unsettled_yday, max_spend_rolling, spent_today
 	dbCopy = db.copy()
 	balance = initialBalance
 	unsettled_yday = 0
 	unsettled_today = 0
 	counter_close = 0
+	spent_today = 0
 	max_spend_rolling = policy['mspend']
 	active_trading = False
 	#print("EVALUATING: %s" % policy)
@@ -442,8 +445,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5,6,7],[20]
-	ps,pswait,pds = [3,4,5,6,7],[20],[4,5]
+	pb, pbwait = [2,3,4,5,6],[20]
+	ps,pswait,pds = [2,3,4,5,6],[20],[4,5]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -452,7 +455,7 @@ def optimizeParams() -> map:
 	minScore = 1e9 # needs ceiling
 	minPolicy = None
 
-	combinations_store = 'combinations_store.log'
+	combinations_store = symb[0]+'_combinations_store.log'
 
 	with open(combinations_store,'w') as f:
 
