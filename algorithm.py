@@ -48,19 +48,21 @@ def tradingDay(back):
 	midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min) - datetime.timedelta(days = 0)
 	if datetime.datetime.now().hour >= 16:
 		midnight = midnight + datetime.timedelta(days = 1)
-	if midnight.weekday() == 0:
-		midnight = midnight - datetime.timedelta(days = 2)
-	elif midnight.weekday() == 6:
-		midnight = midnight - datetime.timedelta(days = 1)
-	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17+24*(back-1)), midnight - datetime.timedelta(hours = 4+24*(back-1))
+
+	timeBegin, timeEnd = midnight - datetime.timedelta(hours = 17), midnight - datetime.timedelta(hours = 4)
+
+	weekdays = 0
+
+	while weekdays < back-1:
+		timeBegin, timeEnd = timeBegin - datetime.timedelta(hours = 24), timeEnd - datetime.timedelta(hours = 24)
+		if(timeBegin.weekday() in [0,1,2,3,4]):
+			weekdays += 1
+
 	bdelta = [timeBegin, timeEnd] 
-	if timeBegin.weekday() == 6:
-		return tradingDay(back+2)
-	elif timeBegin.weekday() == 5:
-		return tradingDay(back+1)
+	
 	for i in range(len(bdelta)):
 		bdelta[i] = int(time.mktime(bdelta[i].timetuple()) * 1e3)
-	return bdelta 
+	return bdelta
 
 starting = 2 #days ago to start SIM
 startOfSIMPeriod = tradingDay(starting-1)[0]
@@ -268,7 +270,7 @@ def updateBalanceAndPosition(symbol,action,quant,price):
 def updatePreMarket():
 	stringOfStocks = ','.join(symb)
 	quotes = []
-	quotes = get_quotes(symbol=stringOfStocks)
+	quotes = get_quotes(symbol=stringOfStocks,premarket=True)
 
 	for e in range(len(symb)):
 		obj = update_vals(symb[e],quotes[e])
@@ -286,7 +288,7 @@ def update(withPolicy = None):
 	stringOfStocks = ','.join(symb)
 	quotes = []
 	if not SIM:
-		quotes = get_quotes(symbol=stringOfStocks)
+		quotes = get_quotes(symbol=stringOfStocks,premarket=False)
 
 	for e in range(len(symb)):
 		if not SIM: 
@@ -384,13 +386,13 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	i = 1
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
-		if datetime.time(9, 30) <= datetime.datetime.now().time() <= datetime.time(15,57) or SIM:
+		if datetime.time(9, 31) <= datetime.datetime.now().time() <= datetime.time(15,57) or SIM:
 			try:
 				balanceUpdater()
 				update(withPolicy)
 			except Exception as e:
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
-		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,30):
+		elif datetime.time(7, 00) <= datetime.datetime.now().time() < datetime.time(9,31):
 			try:
 				updatePreMarket()
 			except Exception as e:
@@ -440,8 +442,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5,6,7,8], [10,20]
-	ps, pswait, pds = [1,2,3,4,5,6], [10,20], [2,3,4]
+	pb, pbwait = [3,4,5,6,7],[20]
+	ps,pswait,pds = [3,4,5,6,7],[20],[4,5]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -521,7 +523,7 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True
-			backtrack = 3
+			backtrack = 2
 			endOfREFPeriod = tradingDay(1)[1]
 			startOfREFPeriod = tradingDay(backtrack)[0]
 			startOfREFInit, endOfREFInit = tradingDay(backtrack+1)

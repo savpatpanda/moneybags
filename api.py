@@ -110,9 +110,13 @@ def get_quotes(**kwargs):
 	obj = requests.get(url, params=params).json()
 
 	requested_stocks = kwargs.get('symbol').split(',')
+	premarket = kwargs.get('premarket')
 	quotes = []
 	for i in range(len(requested_stocks)):
-		quotes.append((float(obj[requested_stocks[i]]['bidPrice']),float(obj[requested_stocks[i]]['askPrice']),int(obj[requested_stocks[i]]['totalVolume']))) if requested_stocks[i] in obj else quotes.append(None)
+		if premarket:
+			quotes.append((float(obj[requested_stocks[i]]['lastPrice']),float(obj[requested_stocks[i]]['lastPrice']),int(obj[requested_stocks[i]]['totalVolume']))) if requested_stocks[i] in obj else quotes.append(None)
+		else:
+			quotes.append((float(obj[requested_stocks[i]]['bidPrice']),float(obj[requested_stocks[i]]['askPrice']),int(obj[requested_stocks[i]]['totalVolume']))) if requested_stocks[i] in obj else quotes.append(None)
 	return quotes
 
 def get_price_history(**kwargs):
