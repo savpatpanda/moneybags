@@ -3,7 +3,7 @@ load_dotenv()
 import math
 import os
 import numpy as np
-from api import buy, sell, get_quotes, getBalance, resetToken, checkPosition
+from api import buy, sell, get_quotes, getBalance, resetToken, checkPosition, textMessage
 import datetime
 import time
 import graphing
@@ -401,6 +401,7 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 				currentFile.write("\n\nReceived Exception at %s\n:%s\n" % (datetime.datetime.now().strftime("%H %M %S"), traceback.format_exc()))
 		elif datetime.time(15,57) <= datetime.datetime.now().time() < datetime.time(16,30):
 			dump()
+			textMessage()
 			dbPut(db)
 			# refreshPolicies()
 			cleanup()
@@ -413,6 +414,8 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			resetToken()
 			currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 			dbPut(db)
+		if i % 120 == 0 and not SIM:
+			textMessage()
 
 	if SIM :
 		currentFile.close()

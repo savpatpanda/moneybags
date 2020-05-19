@@ -1,5 +1,6 @@
 import requests
 import time
+from twilio.rest import Client
 
 def getToken(key):
 	url = r"https://api.tdameritrade.com/v1/oauth2/token"
@@ -23,6 +24,11 @@ account_id = "454685471" #your account number
 key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
 access_token = getToken(key)
 
+#twilio
+twilio_ID = 'AC5af8facef33613c1aa4444e1d2685283'
+twilio_auth_token = '94a1997923f36296861a16944a47c1f8'
+client = Client(twilio_ID,twilio_auth_token)
+
 def resetToken():
 	global access_token
 	access_token = getToken(key)
@@ -45,6 +51,34 @@ def createParams(instruction, symbol, quantity): #update quantities
 		]
 	}
 	return params
+
+def getReturn():
+	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
+	headers = {
+		"Authorization":"Bearer {}".format(access_token)
+	}
+	obj = requests.get(url,headers=headers).json()['securitiesAccount']
+
+	liquidation = obj['currentBalances']['liquidationValue']
+	initial = obj['initialBalances']['accountValue']
+	change = liquidation / initial * 100
+	dollars = liquidation - initial
+
+	return (dollars,change)
+
+def textMessage():
+	balance = getReturn()
+	if balance[0]!=0:
+		output = "Daily Change: $" + str(balance[0]) + " or " + str(balance[1]) + "%" + "."
+	else:
+		output = "NO CHANGE"
+
+	message = client.messages \
+                .create(
+                     body=output,
+                     from_='+15169167871',
+                     to='+17322660834'
+                 )
 
 def getBalance():
 	url = r"https://api.tdameritrade.com/v1/accounts/{}".format(account_id)
