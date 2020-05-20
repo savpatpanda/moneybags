@@ -30,7 +30,7 @@ max_spend_rolling = max_spend
 max_daily_spend = 0.75
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 declineSell = 0.75
-defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+defaultParams = {"buy": 5, "bwait": 15, "sell": 5, "swait": 15, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
 balance = getBalance()
@@ -389,6 +389,9 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 	while(0 < i < maxTimeStep):
 		if not SIM: time.sleep(60)
 		if datetime.time(9, 31) <= datetime.datetime.now().time() <= datetime.time(15,57) or SIM:
+			if i % 120 == 0 and not SIM:
+				textMessage()
+
 			try:
 				balanceUpdater()
 				update(withPolicy)
@@ -414,8 +417,6 @@ def loop(maxTimeStep = 1e9, withPolicy = None):
 			resetToken()
 			currentFile.write("[20 min check in] Current Time: %s\n" % datetime.datetime.now().strftime("%H %M %S"))
 			dbPut(db)
-		if i % 120 == 0 and not SIM:
-			textMessage()
 
 	if SIM :
 		currentFile.close()
@@ -448,8 +449,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [2,3,4,5,6],[20]
-	ps,pswait,pds = [2,3,4,5,6],[20],[4,5]
+	pb, pbwait = [3,4,5,6],[5,10,20]
+	ps,pswait,pds = [3,4,5,6],[5,10,20],[4,5]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
