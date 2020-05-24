@@ -30,7 +30,7 @@ max_spend_rolling = max_spend
 max_daily_spend = 0.75
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 declineSell = 0.75
-defaultParams = {"buy": 5, "bwait": 15, "sell": 5, "swait": 15, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
 balance = getBalance()
@@ -449,8 +449,8 @@ def optimizeParams() -> map:
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5,6],[5,10,20]
-	ps,pswait,pds = [3,4,5,6],[5,10,20],[4,5]
+	pb, pbwait = [3,4,5,6],[10,20]
+	ps,pswait,pds = [2,3,4,5,6],[10,20],[4,5]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
@@ -521,6 +521,10 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	print("moneybags v1")
+	backtrack = 2
+	endOfREFPeriod = tradingDay(1)[1]
+	startOfREFPeriod = tradingDay(backtrack)[0]
+	startOfREFInit, endOfREFInit = tradingDay(backtrack+1)
 	if len(sys.argv) > 1:
 		if sys.argv[1] == 'sim':
 			prepareSim()
@@ -529,12 +533,8 @@ if __name__ == "__main__":
 			prepareSim()
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
-			REF = True
-			backtrack = 2
-			endOfREFPeriod = tradingDay(1)[1]
-			startOfREFPeriod = tradingDay(backtrack)[0]
-			startOfREFInit, endOfREFInit = tradingDay(backtrack+1)
-			collection.delete_many({})
+			REF = True			
+			#collection.delete_many({})
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
 	else:
