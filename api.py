@@ -1,6 +1,16 @@
+import os
 import requests
 import time
 from twilio.rest import Client
+
+account_id = os.getenv("TD_ID") # 454685471" #your account number
+key = os.getenv("TD_KEY") # 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
+
+#twilio
+twilio_ID = os.getenv("TWIL_ID") # 'AC5af8facef33613c1aa4444e1d2685283'
+twilio_auth_token = os.getenv("TWIL_TOKEN") # '94a1997923f36296861a16944a47c1f8'
+client = Client(twilio_ID,twilio_auth_token)
+
 
 def getToken(key):
 	url = r"https://api.tdameritrade.com/v1/oauth2/token"
@@ -20,14 +30,7 @@ def getToken(key):
 		time.sleep(3)
 		return getToken(key)
 
-account_id = "454685471" #your account number
-key = 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
 access_token = getToken(key)
-
-#twilio
-twilio_ID = 'AC5af8facef33613c1aa4444e1d2685283'
-twilio_auth_token = '94a1997923f36296861a16944a47c1f8'
-client = Client(twilio_ID,twilio_auth_token)
 
 def resetToken():
 	global access_token
@@ -104,7 +107,6 @@ def checkPosition(sym):
 	obj = requests.get(url,params=params, headers=headers).json()
 	while 'securitiesAccount' not in obj.keys():
 		time.sleep(5)
-		datetime.datetime.now().time() <= datetime.time(16,00)
 	obj = obj['securitiesAccount']
 	if 'positions' in obj:
 		obj = obj['positions']

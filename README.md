@@ -14,6 +14,10 @@ touch .env
 Specify your database cluster.
 ```
 DB_NAME="###"
+TD_ID="###"
+TD_KEY="###"
+TWIL_ID="###"
+TWIL_TOKEN="###"
 ```
 ## simulate & optimize
 ```
