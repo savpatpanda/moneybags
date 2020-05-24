@@ -3,13 +3,15 @@ import requests
 import time
 from twilio.rest import Client
 
-account_id = os.getenv("TD_ID") # 454685471" #your account number
-key = os.getenv("TD_KEY") # 'QMXVMOERHQTU1ISEK7PY0S9JYCZNPLMJ'
+account_id = os.getenv("TD_ID")
+key = os.getenv("TD_KEY") 
 
 #twilio
-twilio_ID = os.getenv("TWIL_ID") # 'AC5af8facef33613c1aa4444e1d2685283'
-twilio_auth_token = os.getenv("TWIL_TOKEN") # '94a1997923f36296861a16944a47c1f8'
+twilio_ID = os.getenv("TWIL_ID") 
+twilio_auth_token = os.getenv("TWIL_TOKEN") 
 client = Client(twilio_ID,twilio_auth_token)
+twilio_from = os.getenv("TWIL_FROM")
+twilio_to = os.getenv("TWIL_TO")
 
 
 def getToken(key):
@@ -79,8 +81,8 @@ def textMessage():
 	message = client.messages \
                 .create(
                      body=output,
-                     from_='+15169167871',
-                     to='+17322660834'
+                     from_=twilio_from,
+                     to=twilio_to
                  )
 
 def getBalance():

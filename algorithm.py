@@ -30,7 +30,7 @@ max_spend_rolling = max_spend
 max_daily_spend = 0.75
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
 declineSell = 0.75
-defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+defaultParams = {"buy": 5, "bwait": 15, "sell": 5, "swait": 15, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
 balance = getBalance()
@@ -534,7 +534,7 @@ if __name__ == "__main__":
 			optimizeParams()
 		elif sys.argv[1] == 'ref':
 			REF = True			
-			#collection.delete_many({})
+			collection.delete_many({})
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
 	else:
