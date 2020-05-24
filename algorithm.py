@@ -459,7 +459,7 @@ def optimizeParams() -> map:
 	minScore = 1e9 # needs ceiling
 	minPolicy = None
 
-	combinations_store = symb[0]+'_combinations_store.log'
+	combinations_store = 'combinations_store.log'
 
 	with open(combinations_store,'w') as f:
 
