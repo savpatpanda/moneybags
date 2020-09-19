@@ -66,7 +66,7 @@ def getReturn():
 
 	liquidation = obj['currentBalances']['liquidationValue']
 	initial = obj['initialBalances']['accountValue']
-	change = liquidation / initial * 100
+	change = liquidation / initial * 100 - 100
 	dollars = liquidation - initial
 
 	return (dollars,change)
@@ -109,6 +109,7 @@ def checkPosition(sym):
 	obj = requests.get(url,params=params, headers=headers).json()
 	while 'securitiesAccount' not in obj.keys():
 		time.sleep(5)
+		obj = requests.get(url,params=params, headers=headers).json()
 	obj = obj['securitiesAccount']
 	if 'positions' in obj:
 		obj = obj['positions']

@@ -29,8 +29,8 @@ max_spend = 0.2 #maximum amount of balance to spend in given trading minute in d
 max_spend_rolling = max_spend
 max_daily_spend = 0.75
 allow_factor = 2 #override factor to buy stock even if max positions is held (e.g. 2x size drop)
-declineSell = 0.75
-defaultParams = {"buy": 5, "bwait": 15, "sell": 5, "swait": 15, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
+declineSell = 0.6
+defaultParams = {"buy": 5, "bwait": 20, "sell": 5, "swait": 20, "dropsell": 4, "mspend": 0.2, "mprop": 0.3}
 
 #balance init
 balance = getBalance()
@@ -442,32 +442,34 @@ def getPolicyScore(policy):
 	db = dbCopy
 	return ret
 
-def optimizeParams() -> map:
+def optimizeParams():
 	global SIM
 	SIM = True
 	# buy, bwait
 	# sell, swait, dropsell
 	# maxspend, maxproportion
 
-	pb, pbwait = [3,4,5,6],[10,20]
-	ps,pswait,pds = [2,3,4,5,6],[10,20],[4,5]
+	pb, pbwait = [2,3,4,5,6],[5,10,20]
+	ps,pswait,pds = [1,2,3,4,5,6],[5,10,20],[4,5]
 	pms, pmp = [0.2], [0.3]
 
 	combinations = itertools.product(pb, pbwait, ps, pswait, pds, pms, pmp)
+	combinations = list(combinations)
 	topPolicy = None
 	topScore = -1e9 # needs floor
 	minScore = 1e9 # needs ceiling
 	minPolicy = None
 
-	combinations_store = 'combinations_store.log'
+	combinations_store = symb[0]+'_combinations_store.log'
 
 	with open(combinations_store,'w') as f:
-
-		for buy, bwait, sell, swait, dropsell, ms, mp in combinations:
+		counter = 0
+		for combo in combinations:
 			#print("TOP POLICY: %s\nTOP SCORE: %s" % (topPolicy, topScore))
+			buy, bwait, sell, swait, dropsell, ms, mp = combo
+
 			m = {"buy": buy, "bwait": bwait, "sell": sell, "swait": swait, "dropsell": dropsell, "mspend": ms, "mprop": mp}
 			currentScore = getPolicyScore(m)
-			# print(m)
 			# print("score output: %s" % currentScore)
 			if (currentScore > topScore):
 				topPolicy = m
@@ -476,7 +478,18 @@ def optimizeParams() -> map:
 				minPolicy = m
 				minScore = currentScore
 			f.write("\nPolicy: %s\nscore: %s\n" % (m, currentScore))
-
+			
+			indexes = []
+			if currentScore==0:
+				counter += 1
+				for i in range(len(combinations)):
+					if combinations[i][0]>=buy and bwait == combinations[i][1]:
+						indexes.append(i)
+				if counter >= 3:
+					counter = 0
+					for index in sorted(indexes, reverse=True):
+						del combinations[index]
+			
 		f.write("\nfound top policy: %s\nscore: %s\n" % (topPolicy, topScore))
 		f.write("\nfound min policy: %s\nmin score: %s" % (minPolicy, minScore))
 		f.close()
@@ -486,7 +499,7 @@ def optimizeParams() -> map:
 		else:
 			return topPolicy
 
-def optimizeEquity(symbol) -> map:
+def optimizeEquity(symbol):
 	global symb
 	symb = [symbol]
 	return optimizeParams()
@@ -521,7 +534,7 @@ def prepareSim(initStart=startOfSIMInit, initEnd=endOfSIMInit, timeStart = start
 
 if __name__ == "__main__":
 	print("moneybags v1")
-	backtrack = 2
+	backtrack = 5
 	endOfREFPeriod = tradingDay(1)[1]
 	startOfREFPeriod = tradingDay(backtrack)[0]
 	startOfREFInit, endOfREFInit = tradingDay(backtrack+1)
@@ -538,8 +551,8 @@ if __name__ == "__main__":
 			prepareSim(initStart = startOfREFInit, initEnd = endOfREFInit, timeStart = startOfREFPeriod, timeEnd = endOfREFPeriod)
 			refreshPolicies()
 	else:
-		twoDayStart, twoDayEnd = tradingDay(2)
+		threeDayStart, threeDayEnd = tradingDay(3)
 		prevDayStart, prevDayEnd = tradingDay(1)
-		initializeDB(symb,start=twoDayStart,end=prevDayEnd)
+		initializeDB(symb,start=threeDayStart,end=prevDayEnd)
 		db = dbLoad()
 		loop()
